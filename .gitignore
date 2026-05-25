@@ -2,3 +2,10 @@
 __pycache__/
 *.pyc
 .env
+
+.DS_Store
+**/.DS_Store
+.venv/
+__pycache__/
+*.pyc
+orders.db
