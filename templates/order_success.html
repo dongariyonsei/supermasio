@@ -2,111 +2,366 @@
 
 {% block title %}주문 완료{% endblock %}
 
+{% block extra_css %}
+<style>
+    .success-page {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 0 12px 32px;
+        font-family: 'SeoulNamsan', 'Sunflower', 'Nanum Gothic', sans-serif;
+    }
+
+    .success-page-title {
+        text-align: center;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #222;
+        margin: 20px 0 8px;
+    }
+
+    .success-message {
+        text-align: center;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #d60a0a;
+        margin: 8px 0 20px;
+        line-height: 1.4;
+    }
+
+    /* Order info card */
+    .order-info-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 16px;
+    }
+
+    .order-info-card .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 1rem;
+    }
+
+    .order-info-card .info-label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .order-info-card .info-value {
+        color: #222;
+        font-weight: 700;
+    }
+
+    /* Brick gradient separator */
+    .brick-separator {
+        height: 12px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, #df1212, #ffa725, #ffc11a);
+        margin: 16px 0;
+    }
+
+    /* Order items card */
+    .order-detail-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 16px;
+    }
+
+    .order-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .order-item-row:last-of-type {
+        border-bottom: none;
+    }
+
+    .order-item-name {
+        color: #eb1f1f;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    .order-item-qty {
+        background: #f8ab00;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: 3px 12px;
+        border-radius: 20px;
+        min-width: 42px;
+        text-align: center;
+    }
+
+    .order-total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0 4px;
+        border-top: 2px solid #ececec;
+        margin-top: 8px;
+    }
+
+    .order-total-label {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #222;
+    }
+
+    .order-total-value {
+        font-weight: 700;
+        font-size: 1.15rem;
+        color: #d60a0a;
+    }
+
+    /* Payment info card */
+    .payment-info-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 16px;
+    }
+
+    .account-copy-area {
+        text-align: center;
+        padding: 10px 0 4px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border-radius: 10px;
+    }
+
+    .account-copy-area:hover {
+        background: #f8f8f8;
+    }
+
+    .account-number {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #222;
+        letter-spacing: 0.5px;
+    }
+
+    .copy-hint {
+        font-size: 0.85rem;
+        color: #999;
+        margin-top: 2px;
+    }
+
+    .copy-success-msg {
+        font-size: 0.85rem;
+        color: #28a745;
+        font-weight: 700;
+        margin-top: 2px;
+        display: none;
+    }
+
+    .deposit-info {
+        text-align: center;
+        font-size: 0.95rem;
+        color: #555;
+        margin: 8px 0 4px;
+    }
+
+    .memo-hint {
+        text-align: center;
+        font-size: 0.9rem;
+        color: #ff2424;
+        font-weight: 700;
+        margin: 6px 0 0;
+    }
+
+    /* Caution card */
+    .caution-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 24px;
+    }
+
+    .caution-text {
+        color: #888;
+        font-size: 0.9rem;
+        text-align: center;
+        line-height: 1.5;
+    }
+
+    /* Red CTA button */
+    .mario-btn-red {
+        display: block;
+        width: 100%;
+        padding: 16px;
+        background: #d60a0a;
+        color: #ffffff;
+        border: none;
+        border-radius: 14px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        font-family: 'SeoulNamsan', 'Sunflower', 'Nanum Gothic', sans-serif;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+        box-shadow: 0 4px 12px rgba(214, 10, 10, 0.3);
+    }
+
+    .mario-btn-red:hover {
+        background: #b50909;
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .mario-btn-red:active {
+        transform: translateY(1px);
+    }
+
+    /* Gift alert */
+    .gift-alert {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+        text-align: center;
+        font-size: 0.95rem;
+        color: #856404;
+        font-weight: 600;
+    }
+
+    .gift-alert .gift-icon {
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body text-center">
-                    <i class="bi bi-check-circle-fill text-success display-1 mb-3"></i>
-                    {% if is_gift_order %}
-                    <h2 class="card-title">🎁 선물 주문이 성공적으로 접수되었습니다!</h2>
-                    <p class="card-text fs-5">받는 테이블: <strong>{{ order.table_id }}</strong></p>
-                    <p class="card-text fs-5">주문 번호: <strong>#{{ order.id }}</strong></p>
-                    <p class="card-text fs-5">주문 시간: <strong>{{ order.created_at|kst if order.created_at else '-' }}</strong></p>
-                    <p class="card-text fs-5">총 금액: <strong>{{ order.amount|format_currency }}원</strong></p>
-                    <div class="alert alert-info mt-3">
-                        <i class="bi bi-gift me-2"></i>
-                        <strong>선물 주문이 접수되었습니다!</strong><br>
-                        받는 테이블에 알림이 전송되었습니다. 결제 확인 후 주방에서 준비를 시작합니다.
-                    </div>
-                    {% else %}
-                    <h2 class="card-title">주문이 성공적으로 접수되었습니다!</h2>
-                    <p class="card-text fs-5">테이블 번호: <strong>{{ order.table_id }}</strong></p>
-                    <p class="card-text fs-5">주문 번호: <strong>#{{ order.id }}</strong></p>
-                    <p class="card-text fs-5">주문 시간: <strong>{{ order.created_at|kst if order.created_at else '-' }}</strong></p>
-                    <p class="card-text fs-5">총 금액: <strong>{{ order.amount|format_currency }}원</strong></p>
-                    {% endif %}
-                    
-                    <h4 class="mt-4 mb-3">주문 내역</h4>
-                    <div class="order-items mb-4">
-                        <ul class="list-group">
-                            {% for item_id, quantity in order.menu.items() %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ menu_names[item_id] }}
-                                <span class="badge bg-primary rounded-pill">{{ quantity }}개</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+<div class="success-page">
 
-                    <div class="payment-info mb-4">
-                        <h4 class="mb-3">결제 안내</h4>
+    <!-- Page title -->
+    <h2 class="success-page-title">주문 완료</h2>
 
-                        <!-- 수기 송금 안내 섹션 -->
-                        <div class="manual-transfer-section">
-                            <h5>계좌이체로 결제</h5>
-                            <div class="transfer-info p-3 bg-light rounded">
-                                <p class="mb-2">
-                                    계좌번호: 
-                                    <strong id="account-number" style="cursor:pointer;" onclick="copyAccountNumber()" title="클릭하면 복사됩니다">
-                                        토스뱅크 1001-9242-9914
-                                        <span class="ms-1 text-secondary" style="font-size:0.95em;">(터치해서 복사)</span>
-                                    </strong>
-                                    <span id="copy-success" class="text-success ms-2" style="display:none;">복사됨!</span>
-                                </p>
-                                <p class="mb-2">예금주: 유진</p>
-                                <script>
-                                    function copyAccountNumber() {
-                                        const account = "토스뱅크 1001-9242-9914";
-                                        if (navigator.clipboard) {
-                                            navigator.clipboard.writeText(account).then(function() {
-                                                document.getElementById('copy-success').style.display = 'inline';
-                                                setTimeout(function() {
-                                                    document.getElementById('copy-success').style.display = 'none';
-                                                }, 1200);
-                                            });
-                                        } else {
-                                            // fallback for old browsers
-                                            const temp = document.createElement('input');
-                                            temp.value = account;
-                                            document.body.appendChild(temp);
-                                            temp.select();
-                                            document.execCommand('copy');
-                                            document.body.removeChild(temp);
-                                            document.getElementById('copy-success').style.display = 'inline';
-                                            setTimeout(function() {
-                                                document.getElementById('copy-success').style.display = 'none';
-                                            }, 1200);
-                                        }
-                                    }
-                                </script>
-                                {% if is_gift_order %}
-                                <p class="mb-0 text-danger">💬 <strong>메모에 꼭 "선물주문#{{ order.id }}" 입력</strong></p>
-                                {% else %}
-                                <p class="mb-0 text-danger">💬 <strong>메모에 꼭 "테이블{{ order.table_id }}" 입력</strong></p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
+    <!-- Gift order alert (shown only for gift orders) -->
+    {% if is_gift_order %}
+    <div class="gift-alert">
+        <div class="gift-icon">🎁</div>
+        <div>선물 주문이 접수되었습니다!</div>
+        <div style="font-size:0.85rem;margin-top:4px;font-weight:400;">받는 테이블에 알림이 전송되었습니다. 결제 확인 후 주방에서 준비를 시작합니다.</div>
+    </div>
+    {% endif %}
 
-                    <div class="alert alert-warning">
-                        <h5 class="alert-heading">⚠️ 주의사항</h5>
-                        {% if is_gift_order %}
-                        <p class="mb-0">선물 주문의 결제 확인이 완료되어야 받는 테이블에 메뉴가 준비됩니다.</p>
-                        {% else %}
-                        <p class="mb-0">결제 확인이 완료되어야 주문하신 메뉴가 준비됩니다.</p>
-                        {% endif %}
-                    </div>
+    <!-- Success message -->
+    <p class="success-message">주문이 성공적으로 접수 되었습니다!</p>
 
-                    {% if is_gift_order %}
-                    <a href="/chat" class="btn btn-primary">채팅으로 돌아가기</a>
-                    {% else %}
-                    <a href="/order?table={{ order.table_id }}" class="btn btn-primary">주문으로 돌아가기</a>
-                    {% endif %}
-                </div>
-            </div>
+    <!-- Order info card -->
+    <div class="order-info-card mario-card">
+        <div class="info-row">
+            <span class="info-label">테이블 번호</span>
+            <span class="info-value">{{ order.table_id }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">주문 번호</span>
+            <span class="info-value">#{{ order.id }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">주문 시간</span>
+            <span class="info-value">{{ order.created_at|kst if order.created_at else '-' }}</span>
         </div>
     </div>
+
+    <!-- Brick gradient separator -->
+    <div class="brick-separator"></div>
+
+    <!-- Order details section -->
+    <span class="category-pill mb-3">주문 내역</span>
+    <div class="order-detail-card mario-card">
+        {% for item_id, quantity in order.menu.items() %}
+        <div class="order-item-row">
+            <span class="order-item-name">{{ menu_names[item_id] }}</span>
+            <span class="order-item-qty">{{ quantity }}개</span>
+        </div>
+        {% endfor %}
+        <div class="order-total-row">
+            <span class="order-total-label">총 금액</span>
+            <span class="order-total-value">{{ order.amount|format_currency }}원</span>
+        </div>
+    </div>
+
+    <!-- Payment info section -->
+    <span class="category-pill mb-3">결제 안내</span>
+    <div class="payment-info-card mario-card">
+        <div class="account-copy-area" onclick="copyAccountNumber()">
+            <div class="account-number" id="account-number">토스뱅크 1001-9242-9914</div>
+            <div class="copy-hint">(↓터치해서 복사↓)</div>
+            <div class="copy-success-msg" id="copy-success">✓ 복사됨!</div>
+        </div>
+        <div class="deposit-info">예금주: 김연지</div>
+        {% if is_gift_order %}
+        <div class="memo-hint">메모에 꼭 "선물주문#{{ order.id }}" 입력해주세요</div>
+        {% else %}
+        <div class="memo-hint">메모에 꼭 "테이블 {{ order.table_id }}" 입력해주세요</div>
+        {% endif %}
+    </div>
+
+    <!-- Caution section -->
+    <span class="category-pill mb-3">주의사항</span>
+    <div class="caution-card mario-card">
+        {% if is_gift_order %}
+        <p class="caution-text">선물 주문의 결제 확인이 완료되어야<br>받는 테이블에 메뉴가 준비됩니다.</p>
+        {% else %}
+        <p class="caution-text">결제 확인이 완료되어야<br>주문하신 메뉴가 준비됩니다.</p>
+        {% endif %}
+    </div>
+
+    <!-- CTA button -->
+    {% if is_gift_order %}
+    <a href="/chat" class="mario-btn-red">채팅으로 돌아가기</a>
+    {% else %}
+    <a href="/order?table={{ order.table_id }}" class="mario-btn-red">주문으로 돌아가기</a>
+    {% endif %}
+
 </div>
-{% endblock %} 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyAccountNumber() {
+    const account = "토스뱅크 1001-9242-9914";
+    const successEl = document.getElementById('copy-success');
+    const hintEl = document.querySelector('.copy-hint');
+
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(account).then(function() {
+            showCopySuccess();
+        });
+    } else {
+        // fallback for older browsers
+        const temp = document.createElement('input');
+        temp.value = account;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showCopySuccess();
+    }
+
+    function showCopySuccess() {
+        if (hintEl) hintEl.style.display = 'none';
+        successEl.style.display = 'block';
+        setTimeout(function() {
+            successEl.style.display = 'none';
+            if (hintEl) hintEl.style.display = 'block';
+        }, 1500);
+    }
+}
+</script>
+{% endblock %}

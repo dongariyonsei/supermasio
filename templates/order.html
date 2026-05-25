@@ -1,130 +1,769 @@
 {% extends "base.html" %}
 
-{% block title %}주문하기 - 테이블 {{ table_id }}{% endblock %}
+{% block title %}메뉴판 - 테이블 {{ table_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ========================================
+   ORDER PAGE — Figma 4065-1148
+   ======================================== */
+
+/* Page title */
+.order-page-title {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #3a3a3a;
+    text-align: center;
+    margin: 1rem 0 1.5rem;
+    letter-spacing: 1px;
+}
+
+/* Category pill — white bg, red text, r=37 */
+.category-pill {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.category-pill span {
+    display: inline-block;
+    background: #ffffff;
+    color: #ff2424;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 37px;
+    padding: 0.55rem 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Category section wrapper */
+.category-section {
+    margin-bottom: 1.5rem;
+}
+
+/* Menu item card — full width */
+.menu-item-card-mario {
+    border-radius: 37px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 3px 21px rgba(0, 0, 0, 0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+}
+
+.menu-item-card-mario:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Gradient top area */
+.mario-card-gradient {
+    position: relative;
+    padding: 1.2rem 1rem 0.8rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 80px;
+    overflow: hidden;
+}
+
+/* Decorative disc inside gradient */
+.mario-card-disc {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    opacity: 0.5;
+    top: -20px;
+    right: -20px;
+}
+
+/* White bottom info panel */
+.mario-card-info {
+    background: #ffffff;
+    border-radius: 0 0 35px 35px;
+    padding: 1rem 1.2rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.mario-card-name {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #3a3a3a;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    margin-bottom: 0.15rem;
+    line-height: 1.3;
+}
+
+.mario-card-en-name {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: #888888;
+    margin-bottom: 0.3rem;
+}
+
+.mario-card-desc {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: #666666;
+    margin-bottom: 0.5rem;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.45;
+}
+
+/* Price row with coin icon */
+.mario-card-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+}
+
+.mario-card-price {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #3a3a3a;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.mario-card-price .coin-icon {
+    font-size: 1.2rem;
+}
+
+/* Quantity controls inside card */
+.mario-card-qty {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.mario-card-qty .qty-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2.5px solid var(--primary-color);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    padding: 0;
+    flex-shrink: 0;
+    outline: none;
+}
+
+.mario-card-qty .qty-circle:hover {
+    transform: scale(1.1);
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.mario-card-qty .qty-circle.btn-minus {
+    border-color: #ff8700;
+    color: #ff8700;
+}
+
+.mario-card-qty .qty-circle.btn-minus:hover {
+    background: #ff8700;
+    color: #ffffff;
+}
+
+.mario-card-qty .qty-num {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: #3a3a3a;
+    min-width: 28px;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .mario-card-qty .qty-circle {
+        width: 50px;
+        height: 50px;
+        font-size: 1.6rem;
+    }
+}
+
+/* ========================
+   Promo card special
+   ======================== */
+.promo-card .promo-text {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #ffffff;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    line-height: 1.5;
+    padding: 0.5rem 0;
+}
+
+.promo-radio-group {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-top: 0.4rem;
+}
+
+.promo-radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #3a3a3a;
+    cursor: pointer;
+}
+
+.promo-radio-group input[type="radio"] {
+    accent-color: #d60a0a;
+    width: 18px;
+    height: 18px;
+}
+
+/* ========================
+   Rainbow Road sub-items
+   ======================== */
+.rainbow-sub-items {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.rainbow-sub-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f0e8f6;
+}
+
+.rainbow-sub-item:last-child {
+    border-bottom: none;
+}
+
+.rainbow-sub-name {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #3a3a3a;
+}
+
+.rainbow-sub-price {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: #ad62d8;
+    margin-right: 0.5rem;
+}
+
+.rainbow-sub-qty {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.rainbow-sub-qty .qty-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #ad62d8;
+    color: #ad62d8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    flex-shrink: 0;
+    outline: none;
+}
+
+.rainbow-sub-qty .qty-circle:hover {
+    transform: scale(1.1);
+    background: #ad62d8;
+    color: #ffffff;
+}
+
+.rainbow-sub-qty .qty-circle.btn-minus {
+    border-color: #ff8700;
+    color: #ff8700;
+}
+
+.rainbow-sub-qty .qty-circle.btn-minus:hover {
+    background: #ff8700;
+    color: #ffffff;
+}
+
+.rainbow-sub-qty .qty-num {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #3a3a3a;
+    min-width: 22px;
+    text-align: center;
+}
+
+/* ========================
+   Cart Bar (fixed bottom)
+   ======================== */
+.cart-bar-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: linear-gradient(#ff3333, #d60a0a);
+    color: #ffffff;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 25px 25px 0 0;
+    font-family: 'SeoulNamsan', sans-serif;
+}
+
+.cart-bar-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.5rem;
+    cursor: pointer;
+    user-select: none;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cart-bar-empty-text {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #ffffff;
+    text-align: center;
+    width: 100%;
+}
+
+.cart-bar-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.cart-bar-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.cart-bar-total {
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: #fbb317;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cart-bar-right {
+    flex-shrink: 0;
+}
+
+.cart-bar-submit {
+    background: #ffffff;
+    color: #d60a0a;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    border: none;
+    border-radius: 25px;
+    padding: 0.6rem 1.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cart-bar-submit:hover {
+    transform: scale(1.05);
+    background: #fff8e1;
+}
+
+.cart-bar-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Cart expandable list */
+.cart-bar-list {
+    background: #ffffff;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.cart-bar-list.expanded {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.cart-bar-list-inner {
+    padding: 0.5rem 1rem 1rem;
+}
+
+.cart-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    background: #fff8e1;
+    border-radius: 14px;
+    margin-bottom: 0.4rem;
+    font-family: 'SeoulNamsan', sans-serif;
+}
+
+.cart-list-item-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #d60a0a;
+    flex: 1;
+}
+
+.cart-list-item-qty {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #3a3a3a;
+    margin: 0 0.8rem;
+}
+
+.cart-list-item-price {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #fbb317;
+}
+
+/* Bottom spacer so content isn't hidden behind cart bar */
+.cart-bar-spacer {
+    height: 80px;
+}
+
+/* ========================
+   Card gradient variants
+   ======================== */
+.grad-purple { background: linear-gradient(#cd9ce8, #ad62d8); }
+.grad-purple .mario-card-disc { background: #ac79ca; }
+.grad-purple .mario-card-qty .qty-circle { border-color: #ad62d8; color: #ad62d8; }
+.grad-purple .mario-card-qty .qty-circle:hover { background: #ad62d8; color: #fff; }
+
+.grad-green { background: linear-gradient(#57d343, #3ab326); }
+.grad-green .mario-card-disc { background: #3ab925; }
+.grad-green .mario-card-qty .qty-circle { border-color: #3ab326; color: #3ab326; }
+.grad-green .mario-card-qty .qty-circle:hover { background: #3ab326; color: #fff; }
+
+.grad-dark-red { background: linear-gradient(#521111, #280b0b); }
+.grad-dark-red .mario-card-disc { background: #260606; }
+.grad-dark-red .mario-card-qty .qty-circle { border-color: #ff3333; color: #ff3333; }
+.grad-dark-red .mario-card-qty .qty-circle:hover { background: #ff3333; color: #fff; }
+
+.grad-red { background: linear-gradient(#ff3333, #d60a0a); }
+.grad-red .mario-card-disc { background: #d60a0a; }
+.grad-red .mario-card-qty .qty-circle { border-color: #d60a0a; color: #d60a0a; }
+.grad-red .mario-card-qty .qty-circle:hover { background: #d60a0a; color: #fff; }
+
+.grad-orange { background: linear-gradient(#ff8700, #d47000); }
+.grad-orange .mario-card-disc { background: #d77300; }
+.grad-orange .mario-card-qty .qty-circle { border-color: #d47000; color: #d47000; }
+.grad-orange .mario-card-qty .qty-circle:hover { background: #d47000; color: #fff; }
+
+.grad-pink { background: linear-gradient(#ff88c1, #ff6cb3); }
+.grad-pink .mario-card-disc { background: #ff6bb2; }
+.grad-pink .mario-card-qty .qty-circle { border-color: #ff6cb3; color: #ff6cb3; }
+.grad-pink .mario-card-qty .qty-circle:hover { background: #ff6cb3; color: #fff; }
+
+.grad-yellow { background: linear-gradient(#fec954, #fbb317); }
+.grad-yellow .mario-card-disc { background: #f8ab00; }
+.grad-yellow .mario-card-qty .qty-circle { border-color: #d47000; color: #d47000; }
+.grad-yellow .mario-card-qty .qty-circle:hover { background: #d47000; color: #fff; }
+
+.grad-blue { background: linear-gradient(#81c8f0, #6bb6e2); }
+.grad-blue .mario-card-disc { background: #5bb2e5; }
+.grad-blue .mario-card-qty .qty-circle { border-color: #6bb6e2; color: #6bb6e2; }
+.grad-blue .mario-card-qty .qty-circle:hover { background: #6bb6e2; color: #fff; }
+
+.grad-promo { background: linear-gradient(#ff3333, #ed0f0f); }
+.grad-promo .mario-card-disc { background: #d60a0a; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>
-                <img src="/static/images/table_n.png" class="header-icon me-2" alt="테이블">테이블 {{ table_id }}
-            </h2>
-            <a href="/" class="btn btn-outline-primary">
-                <i class="bi bi-house-door me-2"></i>홈으로
-            </a>
-        </div>
+{# ===================================================== #}
+{# Macro: render a single Mario card for a menu item     #}
+{# Must be defined BEFORE it is called in this block      #}
+{# ===================================================== #}
 
-        {% for category_key, items_in_category in menu_items_by_category.items() %}
-        {% if items_in_category %} {# Only render card if category has items #}
-        <div class="card mb-4 animate-fade-in category-{{ category_key }}">
-            <div class="card-header header-{{ category_key }}">
-                <h3 class="mb-0">
-                    {# Icon logic based on category_key #}
-                    {% if category_key == 'table' %}
-                        <img src="/static/images/table.png" class="header-icon me-2" alt="상차림비">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'set_menu' %}
-                        <img src="/static/images/set.png" class="header-icon me-2" alt="세트메뉴">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'drinks' %}
-                        <img src="/static/images/drink.png" class="header-icon me-2" alt="음료">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'main_dishes' %}
-                        <img src="/static/images/main.png" class="header-icon me-2" alt="메인요리">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'side_dishes' %}
-                        <i class="bi bi-basket me-2"></i>{{ category_display_names[category_key] }}
-                    {% else %}
-                        <i class="bi bi-list-ul me-2"></i>{{ category_display_names[category_key]|default(category_key|capitalize) }}
-                    {% endif %}
-                </h3>
-            </div>
-            <div class="card-body">
-                <div class="row row-cols-1 {% if category_key != 'table' %}row-cols-md-2{% endif %} g-4"> {# Table charge items usually full width #}
-                    {% for item in items_in_category %}
-                    <div class="col">
-                        <div class="menu-card">
-                            <div class="row g-0">
-                                <div class="col-12 col-sm-4 menu-image-container">
-                                    {% if item.image_filename %}
-                                        <img src="/static/uploads/{{ item.image_filename }}" 
-                                             class="menu-image img-fluid" 
-                                             alt="{{ item.name_kr }}">
-                                    {% else %}
-                                    <div class="menu-image d-flex align-items-center justify-content-center bg-light img-fluid">
-                                        <i class="bi bi-image text-muted fs-1"></i>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12 col-sm-8">
-                                    <div class="p-3">
-                                        <h5 class="mb-1">{{ item.name_kr }}</h5>
-                                        <small class="text-muted d-block mb-2">{{ item.name_en }}</small>
-                                        {% if item.description %}
-                                        <p class="menu-description">{{ item.description }}</p>
-                                        {% endif %}
-                                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                                            <span class="price">{{ item.price|format_currency }}원</span> {# Use format_currency filter #}
-                                            <div class="quantity-controls">
-                                                <button type="button" 
-                                                        class="quantity-btn" 
-                                                        onclick="updateQuantity('{{ item.id }}', 1)">
-                                                    <i class="bi bi-plus"></i>
-                                                </button>
-                                                <input type="number" 
-                                                       id="quantity-{{ item.id }}" 
-                                                       class="quantity-input" 
-                                                       value="0" 
-                                                       min="0" 
-                                                       readonly>
-                                                <button type="button" 
-                                                        class="quantity-btn" 
-                                                        onclick="updateQuantity('{{ item.id }}', -1)">
-                                                    <i class="bi bi-dash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        {% endfor %}
+{% macro render_mario_card(item) %}
+{% set gradient_map = {
+    "1": "grad-orange",
+    "2": "grad-pink",
+    "3": "grad-dark-red",
+    "4": "grad-pink",
+    "5": "grad-red",
+    "6": "grad-orange",
+    "7": "grad-pink",
+    "8": "grad-red",
+    "9": "grad-green",
+    "10": "grad-yellow",
+    "11": "grad-orange",
+    "12": "grad-purple",
+    "13": "grad-yellow",
+    "14": "grad-blue"
+} %}
+
+{% set en_name_map = {
+    "1": "Table Charge",
+    "2": "Meal for Two",
+    "3": "Meal for Four",
+    "4": "Meal for Six",
+    "5": "Bowser's Pork Belly",
+    "6": "Toad's Tofu with Stir-fried Kimchi",
+    "7": "Peach's Pork Belly Fried Rice",
+    "8": "Mario's Stacked Nachos",
+    "9": "Not-Yoshi Dried Filefish",
+    "10": "Super Star Rice Ball",
+    "11": "Extra Sauce",
+    "12": "Beverages",
+    "13": "Hangover Care Stick",
+    "14": "1UP Life Water"
+} %}
+
+{% set grad_class = gradient_map.get(item.id|string, "grad-red") %}
+{% set en_name = en_name_map.get(item.id|string, item.name_en or "") %}
+
+{% if item.id|string == "12" %}
+<div class="menu-item-card-mario" data-item-id="{{ item.id }}">
+    <div class="mario-card-gradient grad-purple">
+        <div class="mario-card-disc"></div>
     </div>
-
-    <div class="col-md-4">
-        <div class="card sticky-top order-summary-card" style="top: 20px;">
-            <div class="card-header header-order-summary">
-                <h3 class="mb-0">
-                    <img src="/static/images/cart.png" class="header-icon me-2" alt="주문내역">주문 내역
-                </h3>
+    <div class="mario-card-info">
+        <div class="mario-card-name">{{ item.name_kr }}</div>
+        <div class="mario-card-en-name">Beverages</div>
+        {% if item.description %}
+        <div class="mario-card-desc">{{ item.description }}</div>
+        {% endif %}
+        <div class="rainbow-sub-items">
+            <div class="rainbow-sub-item">
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                    <span class="rainbow-sub-name">에너지 드링크</span>
+                    <span class="rainbow-sub-price">1,900원</span>
+                </div>
+                <div class="rainbow-sub-qty">
+                    <button class="qty-circle btn-minus" onclick="updateRainbowQty('rainbow-energy', -1)">−</button>
+                    <span class="qty-num" id="qty-rainbow-energy">0</span>
+                    <button class="qty-circle" onclick="updateRainbowQty('rainbow-energy', 1)">+</button>
+                </div>
             </div>
-            <div class="card-body">
-                <div id="order-summary">
-                    <!-- 주문 내역이 여기에 동적으로 추가됩니다 -->
+            <div class="rainbow-sub-item">
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                    <span class="rainbow-sub-name">레몬</span>
+                    <span class="rainbow-sub-price">1,900원</span>
                 </div>
-                <hr>
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">총 금액</h4>
-                    <h4 class="mb-0" id="total-amount">0원</h4>
+                <div class="rainbow-sub-qty">
+                    <button class="qty-circle btn-minus" onclick="updateRainbowQty('rainbow-lemon', -1)">−</button>
+                    <span class="qty-num" id="qty-rainbow-lemon">0</span>
+                    <button class="qty-circle" onclick="updateRainbowQty('rainbow-lemon', 1)">+</button>
                 </div>
-                <button type="button" 
-                        class="btn btn-primary w-100" 
-                        onclick="submitOrder()" 
-                        id="submit-order-btn" 
-                        disabled>
-                    <i class="bi bi-check-circle me-2"></i>주문하기
-                </button>
+            </div>
+            <div class="rainbow-sub-item">
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                    <span class="rainbow-sub-name">청사과</span>
+                    <span class="rainbow-sub-price">1,900원</span>
+                </div>
+                <div class="rainbow-sub-qty">
+                    <button class="qty-circle btn-minus" onclick="updateRainbowQty('rainbow-greenapple', -1)">−</button>
+                    <span class="qty-num" id="qty-rainbow-greenapple">0</span>
+                    <button class="qty-circle" onclick="updateRainbowQty('rainbow-greenapple', 1)">+</button>
+                </div>
+            </div>
+            <div class="rainbow-sub-item">
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                    <span class="rainbow-sub-name">오렌지</span>
+                    <span class="rainbow-sub-price">1,900원</span>
+                </div>
+                <div class="rainbow-sub-qty">
+                    <button class="qty-circle btn-minus" onclick="updateRainbowQty('rainbow-orange', -1)">−</button>
+                    <span class="qty-num" id="qty-rainbow-orange">0</span>
+                    <button class="qty-circle" onclick="updateRainbowQty('rainbow-orange', 1)">+</button>
+                </div>
+            </div>
+            <div class="rainbow-sub-item">
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                    <span class="rainbow-sub-name">탄산수</span>
+                    <span class="rainbow-sub-price">1,900원</span>
+                </div>
+                <div class="rainbow-sub-qty">
+                    <button class="qty-circle btn-minus" onclick="updateRainbowQty('rainbow-sparkling', -1)">−</button>
+                    <span class="qty-num" id="qty-rainbow-sparkling">0</span>
+                    <button class="qty-circle" onclick="updateRainbowQty('rainbow-sparkling', 1)">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="menu-item-card-mario" data-item-id="{{ item.id }}">
+    <div class="mario-card-gradient {{ grad_class }}">
+        <div class="mario-card-disc"></div>
+    </div>
+    <div class="mario-card-info">
+        <div class="mario-card-name">{{ item.name_kr }}</div>
+        <div class="mario-card-en-name">{{ en_name }}</div>
+        {% if item.description %}
+        <div class="mario-card-desc">{{ item.description }}</div>
+        {% endif %}
+        <div class="mario-card-price-row">
+            <div class="mario-card-price">
+                <span class="coin-icon">🪙</span>
+                <span>{{ item.price|format_currency }}원</span>
+            </div>
+            <div class="mario-card-qty">
+                <button class="qty-circle btn-minus" onclick="updateQuantity('{{ item.id }}', -1)">−</button>
+                <span class="qty-num" id="quantity-{{ item.id }}">0</span>
+                <button class="qty-circle" onclick="updateQuantity('{{ item.id }}', 1)">+</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{# ===================================================== #}
+{# Page content starts here                              #}
+{# ===================================================== #}
+
+<!-- Page data (hidden) -->
+<div id="menu-data" style="display:none;" data-menu='{{ menu_item_details_for_js|tojson }}'></div>
+<div id="table-data" style="display:none;" data-table-id="{{ table_id }}"></div>
+
+<!-- Page Title -->
+<h1 class="order-page-title">메뉴판</h1>
+
+<!-- ===== 1. 포장 이벤트 (Promo) ===== -->
+<div class="category-section">
+    <div class="category-pill"><span>포장 이벤트</span></div>
+    <div class="menu-item-card-mario promo-card">
+        <div class="mario-card-gradient grad-promo">
+            <div class="mario-card-disc"></div>
+            <div class="promo-text">
+                🎁 포장 시 소주 or 맥주 택 1개 무료!
+            </div>
+        </div>
+        <div class="mario-card-info">
+            <div class="promo-radio-group">
+                <label>
+                    <input type="radio" name="promo-drink" value="소주" checked>
+                    소주
+                </label>
+                <label>
+                    <input type="radio" name="promo-drink" value="맥주">
+                    맥주
+                </label>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 데이터 속성으로 필요한 정보 전달 -->
-<div id="menu-data" style="display: none;" data-menu='{{ menu_item_details_for_js|tojson }}'></div>
-<div id="table-data" style="display: none;" data-table-id="{{ table_id }}"></div>
+<!-- ===== 2. 세트 메뉴 ===== -->
+{% if menu_items_by_category.get('set_menu') %}
+<div class="category-section">
+    <div class="category-pill"><span>세트 메뉴</span></div>
+    {% for item in menu_items_by_category['set_menu'] %}
+    {{ render_mario_card(item) }}
+    {% endfor %}
+</div>
+{% endif %}
 
-<!-- 외부 JavaScript 파일 로드 -->
+<!-- ===== 3. 메인 요리 ===== -->
+{% if menu_items_by_category.get('main_dishes') %}
+<div class="category-section">
+    <div class="category-pill"><span>메인 요리</span></div>
+    {% for item in menu_items_by_category['main_dishes'] %}
+    {{ render_mario_card(item) }}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ===== 4. 음료 및 기타 메뉴 ===== -->
+{% if menu_items_by_category.get('drinks') %}
+<div class="category-section">
+    <div class="category-pill"><span>음료 및 기타 메뉴</span></div>
+    {% for item in menu_items_by_category['drinks'] %}
+    {{ render_mario_card(item) }}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ===== Side dishes (if any) ===== -->
+{% if menu_items_by_category.get('side_dishes') %}
+<div class="category-section">
+    <div class="category-pill"><span>사이드 메뉴</span></div>
+    {% for item in menu_items_by_category['side_dishes'] %}
+    {{ render_mario_card(item) }}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ===== Table charge (if any) ===== -->
+{% if menu_items_by_category.get('table') %}
+<div class="category-section">
+    <div class="category-pill"><span>상차림비</span></div>
+    {% for item in menu_items_by_category['table'] %}
+    {{ render_mario_card(item) }}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Bottom spacer for cart bar -->
+<div class="cart-bar-spacer"></div>
+
+<!-- ===== Fixed Bottom Cart Bar ===== -->
+<div class="cart-bar-fixed" id="cartBar">
+    <div class="cart-bar-main" id="cartBarMain">
+        <span class="cart-bar-empty-text" id="cartBarEmptyText">주문 내역</span>
+        <div id="cartBarFilled" style="display:none; width:100%;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div class="cart-bar-left">
+                    <span class="cart-bar-label">총 금액</span>
+                    <span class="cart-bar-total" id="cartBarTotal">0원</span>
+                </div>
+                <div class="cart-bar-right">
+                    <button class="cart-bar-submit" id="cartBarSubmitBtn" onclick="submitOrder()">주문하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Expandable item list -->
+    <div class="cart-bar-list" id="cartBarList">
+        <div class="cart-bar-list-inner" id="cartBarListInner">
+            <!-- Items rendered by JS -->
+        </div>
+    </div>
+</div>
+
 <script src="/static/js/order.js"></script>
-{% endblock %} 
+{% endblock %}

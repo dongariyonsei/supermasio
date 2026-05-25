@@ -1,3 +1,8 @@
+/* ============================================================
+   Super Mario Design System — style.css
+   Mario-themed UI replacing Animal Crossing
+   ============================================================ */
+
 /* Custom Font Loading */
 @font-face {
     font-family: 'SeoulNamsan';
@@ -7,26 +12,72 @@
     font-display: swap;
 }
 
-/* Global Styles */
+/* ============================================================
+   Design Tokens
+   ============================================================ */
 :root {
-    /* 동물의 숲 스타일 색상 */
-    --primary-color: #A8D08D;    
-    --secondary-color: #FBC9C9;  
-    --success-color: #FFD166;    
-    --danger-color: #FF6B6B;     
-    --warning-color: #FFE66D;    
-    --info-color: #95E1D3;       
-    --light-color: #FFF1A8;
-    --dark-color: #4B4B4B;      
-    --border-color: #A67C52;
-    --bg-color: #A8D08D;         
-    
-    /* 공통 스타일 */
-    --border-radius: 32px;
-    --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    /* Mario primary palette */
+    --primary-color: #d60a0a;
+    --primary-light: #ff3333;
+    --primary-dark: #9c0808;
+    --secondary-color: #ff8700;
+    --success-color: #3ab326;
+    --danger-color: #d60a0a;
+    --warning-color: #fbb317;
+    --info-color: #6bb6e2;
+    --light-color: #ffffff;
+    --dark-color: #3a3a3a;
+    --border-color: #d60a0a;
+    --bg-color: #ececec;
+
+    /* Accent colors */
+    --accent-red: #eb1f1f;
+    --accent-yellow: #f8ab00;
+    --accent-orange: #d47000;
+    --accent-pink: #ff6cb3;
+    --accent-purple: #ad62d8;
+    --accent-blue: #6bb6e2;
+    --accent-green: #3ab326;
+
+    /* Mario card gradient palettes */
+    --card-purple: linear-gradient(#cd9ce8, #ad62d8);
+    --card-green: linear-gradient(#57d343, #3ab326);
+    --card-dark-red: linear-gradient(#521111, #280b0b);
+    --card-red: linear-gradient(#ff3333, #d60a0a);
+    --card-orange: linear-gradient(#ff8700, #d47000);
+    --card-pink: linear-gradient(#ff88c1, #ff6cb3);
+    --card-yellow: linear-gradient(#fec954, #fbb317);
+    --card-blue: linear-gradient(#81c8f0, #6bb6e2);
+    --card-promo: linear-gradient(#ff3333, #ed0f0f);
+
+    /* Disc (decorative circle) colors */
+    --disc-purple: #ac79ca;
+    --disc-green: #3ab925;
+    --disc-dark-red: #260606;
+    --disc-red: #d60a0a;
+    --disc-orange: #d77300;
+    --disc-pink: #ff6bb2;
+    --disc-yellow: #f8ab00;
+    --disc-blue: #5bb2e5;
+    --disc-promo: #d60a0a;
+
+    /* Shadows */
+    --shadow-card: 0 3px 21px #000000;
+    --shadow-header: 1px -22px 61px #515151;
+    --shadow-text: 0 2px 4px #000000;
+    --shadow-text-strong: 0 4px 4px #000000;
+
+    /* Spacing / Radius */
+    --border-radius: 37px;
+    --border-radius-sm: 25px;
+    --border-radius-xs: 12px;
+    --box-shadow: 0 3px 21px rgba(0, 0, 0, 0.15);
     --transition: all 0.2s ease-in-out;
 }
 
+/* ============================================================
+   Base / Body
+   ============================================================ */
 body {
     font-family: 'SeoulNamsan', 'Baloo 2', 'Nanum Gothic Coding', sans-serif;
     line-height: 1.6;
@@ -34,12 +85,124 @@ body {
     background-color: var(--bg-color);
 }
 
-/* Card Styles */
+/* ============================================================
+   Mario Header
+   ============================================================ */
+.mario-header {
+    background-color: var(--primary-color);
+    box-shadow: var(--shadow-header);
+    padding: 1.2rem 0;
+    position: relative;
+    z-index: 100;
+}
+
+.mario-header .header-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mario-header .header-sub {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 0.25rem;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ============================================================
+   Navbar (customer-facing)
+   ============================================================ */
+.navbar {
+    border-radius: 0 0 25px 25px;
+    background: var(--primary-color);
+    box-shadow: var(--shadow-header);
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.navbar-brand {
+    font-weight: 800;
+    font-size: 2rem;
+    color: #ffffff;
+    font-family: 'SeoulNamsan', sans-serif;
+    text-shadow: var(--shadow-text);
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand i {
+    color: #ffffff;
+    margin-right: 8px;
+}
+
+/* Brand text styles — Mario theme */
+.brand-text-first {
+    color: #ffffff;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 2rem;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    text-shadow: var(--shadow-text);
+}
+
+.brand-text-second {
+    color: #fbb317;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 2rem;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    text-shadow: var(--shadow-text);
+}
+
+/* Navbar link styles */
+.navbar-nav .nav-link {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 600;
+    color: #ffffff;
+    border-radius: 20px;
+    padding: 8px 16px !important;
+    margin: 0 4px;
+    transition: var(--transition);
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.navbar-light .navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.navbar-light .navbar-toggler-icon {
+    filter: brightness(0) invert(1);
+}
+
+/* ============================================================
+   Card Styles
+   ============================================================ */
 .card {
-    background-color: #FDF6C9;
-    border: 4px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    background-color: #ffffff;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-card);
     transition: var(--transition);
     box-sizing: border-box;
     overflow: hidden;
@@ -47,135 +210,248 @@ body {
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .card-header {
     background-color: var(--primary-color);
-    color: var(--border-color);
-    border-bottom: 4px solid var(--border-color);
-    border-radius: calc(var(--border-radius) - 4px) calc(var(--border-radius) - 4px) 0 0;
+    color: #ffffff;
+    border-bottom: none;
+    border-radius: calc(var(--border-radius-sm) - 2px) calc(var(--border-radius-sm) - 2px) 0 0;
     padding: 1rem;
+    text-shadow: var(--shadow-text);
 }
 
-/* 카테고리별 헤더 색상 */
+/* Category header colors */
 .header-table {
-    background-color: #F0C5A5;
-    color: #6E4924;
+    background-color: var(--accent-orange);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
 .header-set_menu {
-    background-color: #F4C2C2;
-    color: #6E4924;
+    background-color: var(--accent-pink);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
 .header-main_dishes {
-    background-color: #6AA84F;
-    color: white;
+    background: var(--card-red);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
 .header-side_dishes {
-    background-color: #A2CFEA;
-    color: #6E4924;
+    background: var(--card-green);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
 .header-drinks {
-    background-color: #A2CFEA;
-    color: #6E4924;
+    background: var(--card-blue);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
-/* 주문 내역 헤더 색상 */
+/* Order summary header */
 .header-order-summary {
-    background-color: #F2D694;
-    color: #6E4924;
+    background: var(--card-promo);
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
-/* Button Styles */
-.btn {
+/* ============================================================
+   Mario Card (white card with r=37 shadow)
+   ============================================================ */
+.mario-card {
+    background-color: #ffffff;
+    border: none;
     border-radius: var(--border-radius);
-    padding: 0.6em 1.2em;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
     transition: var(--transition);
-    font-weight: 600;
-    border: 4px solid transparent;
 }
 
-.btn-primary {
-    background-color: #7A9B5E;
-    border-color: #7A9B5E;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #6B8A52;
-    border-color: #6B8A52;
+.mario-card:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
-.btn-primary:not(:disabled):not(.disabled) {
-    background-color: #5C7943;
-    border-color: #5C7943;
-    color: white;
+/* ============================================================
+   Category Pill (white pill with red text)
+   ============================================================ */
+.category-pill {
+    display: inline-block;
+    background-color: #ffffff;
+    color: #ff2424;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 37px;
+    padding: 0.5rem 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    text-shadow: none;
 }
 
-.btn-primary:not(:disabled):not(.disabled):hover {
-    background-color: #4A6435;
-    border-color: #4A6435;
+/* ============================================================
+   Menu Item Card — Mario Gradient
+   ============================================================ */
+.menu-item-card-mario {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--shadow-card);
+    transition: var(--transition);
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
 }
 
-.btn-outline-primary {
-    background-color: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-}
-
-.btn-outline-primary:hover {
-    background-color: var(--danger-color);
-    color: white;
+.menu-item-card-mario:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
-/* Menu Card Styles */
+/* Gradient top area */
+.mario-card-gradient {
+    position: relative;
+    padding: 1.5rem 1rem 0.5rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 80px;
+    overflow: hidden;
+}
+
+/* Decorative circle inside gradient */
+.mario-card-disc {
+    position: absolute;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    opacity: 0.5;
+    top: -20px;
+    right: -20px;
+}
+
+/* White bottom info panel */
+.mario-card-info {
+    background-color: #ffffff;
+    border-radius: 0 0 calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px);
+    padding: 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.mario-card-name {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--dark-color);
+    text-shadow: none;
+    margin-bottom: 0.25rem;
+}
+
+.mario-card-en-name {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: #888888;
+    margin-bottom: 0.35rem;
+}
+
+.mario-card-desc {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: #666666;
+    margin-bottom: 0.5rem;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.mario-card-price {
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--accent-yellow);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Per-item gradient variants */
+.mario-card-gradient.gradient-purple { background: var(--card-purple); }
+.mario-card-gradient.gradient-purple + .mario-card-info { border-top: none; }
+.mario-card-gradient.gradient-purple .mario-card-disc { background-color: var(--disc-purple); }
+
+.mario-card-gradient.gradient-green { background: var(--card-green); }
+.mario-card-gradient.gradient-green .mario-card-disc { background-color: var(--disc-green); }
+
+.mario-card-gradient.gradient-dark-red { background: var(--card-dark-red); }
+.mario-card-gradient.gradient-dark-red .mario-card-disc { background-color: var(--disc-dark-red); }
+
+.mario-card-gradient.gradient-red { background: var(--card-red); }
+.mario-card-gradient.gradient-red .mario-card-disc { background-color: var(--disc-red); }
+
+.mario-card-gradient.gradient-orange { background: var(--card-orange); }
+.mario-card-gradient.gradient-orange .mario-card-disc { background-color: var(--disc-orange); }
+
+.mario-card-gradient.gradient-pink { background: var(--card-pink); }
+.mario-card-gradient.gradient-pink .mario-card-disc { background-color: var(--disc-pink); }
+
+.mario-card-gradient.gradient-yellow { background: var(--card-yellow); }
+.mario-card-gradient.gradient-yellow .mario-card-disc { background-color: var(--disc-yellow); }
+
+.mario-card-gradient.gradient-blue { background: var(--card-blue); }
+.mario-card-gradient.gradient-blue .mario-card-disc { background-color: var(--disc-blue); }
+
+.mario-card-gradient.gradient-promo { background: var(--card-promo); }
+.mario-card-gradient.gradient-promo .mario-card-disc { background-color: var(--disc-promo); }
+
+/* ============================================================
+   Classic Menu Card (retained for backward compat)
+   ============================================================ */
 .menu-card {
     overflow: hidden;
     height: 100%;
-    background-color: var(--light-color);
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
+    background-color: #ffffff;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-card);
     transition: var(--transition);
     box-sizing: border-box;
 }
 
 .menu-card:hover {
     transform: translateY(-2px);
-    border-color: var(--primary-color);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
-/* New .menu-image styles */
+/* Menu card image */
 .menu-image {
     width: 100%;
     object-fit: cover;
     display: block;
 }
 
-/* Styles for stacked view (mobile first approach) */
+/* Stacked view (mobile first) */
 .menu-card .menu-image-container .menu-image {
     aspect-ratio: 16 / 9;
     height: auto;
-    border-radius: calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px) 0 0;
+    border-radius: calc(var(--border-radius-sm) - 2px) calc(var(--border-radius-sm) - 2px) 0 0;
 }
 
-/* Styles for the placeholder icon in stacked view */
 .menu-card .menu-image-container .menu-image.d-flex {
     aspect-ratio: 16 / 9;
     height: auto;
 }
 
-/* Styles for side-by-side view (screens sm and up) */
+/* Side-by-side view (sm+) */
 @media (min-width: 576px) {
     .menu-card .menu-image-container .menu-image {
         height: 170px;
         aspect-ratio: unset;
-        border-radius: calc(var(--border-radius) - 2px) 0 0 calc(var(--border-radius) - 2px);
+        border-radius: calc(var(--border-radius-sm) - 2px) 0 0 calc(var(--border-radius-sm) - 2px);
     }
 
     .menu-card .menu-image-container .menu-image.d-flex {
@@ -187,17 +463,18 @@ body {
 /* Menu card text styling */
 .menu-card h5 {
     overflow-wrap: break-word;
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
+    font-family: 'SeoulNamsan', sans-serif;
     font-weight: 700;
+    color: var(--dark-color);
 }
 
 .menu-card .text-muted {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
+    font-family: 'SeoulNamsan', sans-serif;
     font-weight: 400;
 }
 
 .menu-card .menu-description {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
+    font-family: 'SeoulNamsan', sans-serif;
     font-weight: 400;
     font-size: 0.9rem;
     color: var(--dark-color);
@@ -207,56 +484,226 @@ body {
 }
 
 .menu-card .price {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
+    font-family: 'SeoulNamsan', sans-serif;
     font-weight: 700;
+    color: var(--accent-yellow);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Menu image container border */
+/* Menu image container in side-by-side */
 .menu-card .col-12.col-sm-4.menu-image-container {
-    border: 2px solid var(--border-color);
-    border-right: none; /* 데스크톱에서 오른쪽 border 제거 */
-    border-radius: calc(var(--border-radius) - 2px) 0 0 calc(var(--border-radius) - 2px);
+    border: none;
+    border-radius: calc(var(--border-radius-sm) - 2px) 0 0 calc(var(--border-radius-sm) - 2px);
     margin: 0;
     padding: 0;
 }
 
-/* 모바일에서는 상단 모서리만 둥글게 */
 @media (max-width: 575px) {
     .menu-card .col-12.col-sm-4.menu-image-container {
-        border-right: 2px solid var(--border-color); /* 모바일에서 오른쪽 border 복원 */
-        border-bottom: none; /* 모바일에서 하단 border 제거 */
-        border-radius: calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px) 0 0;
+        border-radius: calc(var(--border-radius-sm) - 2px) calc(var(--border-radius-sm) - 2px) 0 0;
     }
 }
 
-/* Ensure the text content block handles overflow and flex layout */
+/* Text content block */
 .menu-card .col-12.col-sm-8 > .p-3 {
     overflow: hidden;
     display: flex;
     flex-direction: column;
     height: 100%;
-    border: 2px solid var(--border-color);
-    border-left: none; /* 데스크톱에서 왼쪽 border 제거 */
-    border-radius: 0 calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px) 0;
+    border: none;
+    border-radius: 0 calc(var(--border-radius-sm) - 2px) calc(var(--border-radius-sm) - 2px) 0;
     margin: 0;
 }
 
-/* 모바일에서는 하단 모서리만 둥글게 */
 @media (max-width: 575px) {
     .menu-card .col-12.col-sm-8 > .p-3 {
-        border-left: 2px solid var(--border-color); /* 모바일에서 왼쪽 border 복원 */
-        border-top: none; /* 모바일에서 상단 border 제거 */
-        border-radius: 0 0 calc(var(--border-radius) - 2px) calc(var(--border-radius) - 2px);
+        border-radius: 0 0 calc(var(--border-radius-sm) - 2px) calc(var(--border-radius-sm) - 2px);
     }
 }
 
-/* Quantity Controls */
+/* ============================================================
+   Button Styles
+   ============================================================ */
+.btn {
+    border-radius: 39px;
+    padding: 0.6em 1.2em;
+    transition: var(--transition);
+    font-weight: 600;
+    border: 2px solid transparent;
+}
+
+.btn-primary {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
+    box-shadow: 0 2px 8px rgba(214, 10, 10, 0.35);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(214, 10, 10, 0.45);
+    color: #ffffff;
+}
+
+.btn-primary:not(:disabled):not(.disabled) {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border: 2px solid #ffffff;
+    color: #ffffff;
+}
+
+.btn-primary:not(:disabled):not(.disabled):hover {
+    background: linear-gradient(var(--primary-color), var(--primary-dark));
+    color: #ffffff;
+}
+
+.btn-outline-primary {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
+}
+
+.btn-outline-primary:hover {
+    background: linear-gradient(var(--primary-color), var(--primary-dark));
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: linear-gradient(#57d343, #3ab326);
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
+}
+
+.btn-success:hover {
+    background: linear-gradient(#3ab326, #2e9a1e);
+    transform: translateY(-2px);
+    color: #ffffff;
+}
+
+.btn-warning {
+    background: linear-gradient(#fec954, #fbb317);
+    border: 2px solid #ffffff;
+    color: var(--dark-color);
+    font-weight: 700;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(#fbb317, #e6a212);
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    color: #ffffff;
+}
+
+.btn-outline-danger {
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.btn-outline-danger:hover {
+    background: var(--primary-color);
+    color: #ffffff;
+}
+
+.btn-outline-secondary {
+    border: 2px solid var(--dark-color);
+    color: var(--dark-color);
+    background: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background: var(--dark-color);
+    color: #ffffff;
+}
+
+.btn-secondary {
+    background: var(--dark-color);
+    border: 2px solid var(--dark-color);
+    color: #ffffff;
+}
+
+.btn-secondary:hover {
+    background: #555555;
+    color: #ffffff;
+}
+
+.btn-info {
+    background: linear-gradient(#81c8f0, #6bb6e2);
+    border: 2px solid #ffffff;
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
+}
+
+.btn-info:hover {
+    background: linear-gradient(#6bb6e2, #5bb2e5);
+    transform: translateY(-2px);
+    color: #ffffff;
+}
+
+/* Mario Button (explicit gradient red) */
+.mario-btn {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border: 2px solid #ffffff;
+    border-radius: 39px;
+    color: #ffffff;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-weight: 700;
+    padding: 0.65em 1.4em;
+    text-shadow: var(--shadow-text);
+    box-shadow: 0 2px 8px rgba(214, 10, 10, 0.35);
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.mario-btn:hover {
+    background: linear-gradient(var(--primary-color), var(--primary-dark));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(214, 10, 10, 0.45);
+    color: #ffffff;
+}
+
+.mario-btn:active {
+    transform: translateY(0);
+}
+
+.mario-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================================
+   Quantity Controls
+   ============================================================ */
 .quantity-controls {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.quantity-controls button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.3rem;
+    font-size: 0.9rem;
 }
 
 .quantity-btn {
@@ -267,15 +714,17 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background-color: var(--primary-color);
-    color: white;
-    border: 3px solid var(--border-color);
+    background-color: #ffffff;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
     transition: var(--transition);
     font-size: 1.2rem;
+    font-weight: 700;
 }
 
 .quantity-btn:hover {
-    background-color: #92c7a1;
+    background-color: var(--primary-color);
+    color: #ffffff;
     transform: translateY(-1px);
 }
 
@@ -284,170 +733,379 @@ body {
     height: 35px;
     text-align: center;
     font-weight: bold;
-    border-radius: 8px;
-    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    border: 2px solid var(--primary-color);
+    background-color: #fff4f4;
     font-size: 0.9rem;
+    color: var(--dark-color);
 }
 
-/* Order Summary */
+/* Qty circle (round +/- buttons — 81x81 for desktop, responsive) */
+.qty-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    color: var(--primary-color);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+}
+
+.qty-circle:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    transform: scale(1.08);
+}
+
+.qty-circle.minus {
+    color: var(--accent-orange);
+}
+
+.qty-circle.minus:hover {
+    background-color: var(--accent-orange);
+    color: #ffffff;
+}
+
+@media (min-width: 768px) {
+    .qty-circle {
+        width: 81px;
+        height: 81px;
+        font-size: 2rem;
+    }
+}
+
+/* Category-colored quantity buttons */
+.category-table .quantity-btn {
+    background-color: #ffffff;
+    border-color: var(--accent-orange);
+    color: var(--accent-orange);
+}
+
+.category-table .quantity-btn:hover {
+    background-color: var(--accent-orange);
+    color: #ffffff;
+}
+
+.category-set_menu .quantity-btn {
+    background-color: #ffffff;
+    border-color: var(--accent-pink);
+    color: var(--accent-pink);
+}
+
+.category-set_menu .quantity-btn:hover {
+    background-color: var(--accent-pink);
+    color: #ffffff;
+}
+
+.category-main_dishes .quantity-btn {
+    background-color: #ffffff;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.category-main_dishes .quantity-btn:hover {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.category-side_dishes .quantity-btn {
+    background-color: #ffffff;
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+}
+
+.category-side_dishes .quantity-btn:hover {
+    background-color: var(--accent-green);
+    color: #ffffff;
+}
+
+.category-drinks .quantity-btn {
+    background-color: #ffffff;
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.category-drinks .quantity-btn:hover {
+    background-color: var(--accent-blue);
+    color: #ffffff;
+}
+
+/* ============================================================
+   Order Summary
+   ============================================================ */
 .order-summary-item {
     transition: var(--transition);
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-sm);
     margin-bottom: 0.5rem;
-    background-color: var(--light-color);
-    border: 2px solid var(--border-color);
+    background-color: #ffffff;
+    border: none;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
     padding: 0.8rem;
 }
 
 .order-summary-item:hover {
-    background-color: var(--primary-color);
-    color: white;
+    background-color: #fff4f4;
 }
 
-/* Animations */
-@keyframes fadeIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(10px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+/* Names in order summary are red */
+.order-summary-item .item-name {
+    color: var(--accent-red);
+    font-weight: 700;
 }
 
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
+/* Prices/qty are yellow-gold */
+.order-summary-item .item-price,
+.order-summary-item .item-qty {
+    color: var(--accent-yellow);
+    font-weight: 700;
 }
 
-/* Table Styles */
-.table {
-    background-color: var(--light-color);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    border: 2px solid var(--border-color);
+/* ============================================================
+   Fixed bottom Cart Bar
+   ============================================================ */
+.cart-bar-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    text-shadow: var(--shadow-text);
+    border-radius: 25px 25px 0 0;
 }
 
-.table thead th {
-    background-color: var(--primary-color);
-    color: white;
-    border-bottom: 2px solid var(--border-color);
-    font-weight: 600;
+.cart-bar-items {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-right: 1rem;
 }
 
-/* Status Badges */
-.badge {
-    padding: 0.5em 0.8em;
-    border-radius: 12px;
-    font-weight: 500;
+.cart-bar-items .cart-item-count {
+    background-color: #ffffff;
+    color: var(--primary-color);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }
 
-.badge-pending {
-    background-color: var(--warning-color);
-    color: var(--dark-color);
+.cart-bar-fixed .total-label {
+    font-weight: 700;
+    font-size: 1.1rem;
 }
 
-.badge-cooking {
-    background-color: var(--info-color);
-    color: white;
+.cart-bar-fixed .total-amount {
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--accent-yellow);
+    text-shadow: var(--shadow-text);
 }
 
-.badge-completed {
-    background-color: var(--success-color);
-    color: var(--dark-color);
+.cart-bar-fixed .mario-btn {
+    flex-shrink: 0;
 }
 
-/* Form Controls */
-.form-control {
-    border-radius: var(--border-radius);
-    border: 2px solid var(--border-color);
+/* ============================================================
+   Mario Input
+   ============================================================ */
+.mario-input {
+    background-color: #fff4f4;
+    border: 2px solid #ff2424;
+    border-radius: 25px;
     padding: 0.6em 1em;
     transition: var(--transition);
-    background-color: var(--light-color);
+    color: var(--dark-color);
+    font-family: 'SeoulNamsan', sans-serif;
+}
+
+.mario-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(214, 10, 10, 0.2);
+    outline: none;
+}
+
+.mario-input::placeholder {
+    color: #cc8888;
+}
+
+/* ============================================================
+   Section Title (white pill with red text)
+   ============================================================ */
+.mario-section-title {
+    display: inline-block;
+    background-color: #ffffff;
+    color: #ff2424;
+    font-family: 'SeoulNamsan', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 37px;
+    padding: 0.6rem 1.8rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    text-shadow: none;
+    margin-bottom: 1rem;
+}
+
+/* ============================================================
+   Form Controls
+   ============================================================ */
+.form-control {
+    border-radius: 25px;
+    border: 2px solid #ff2424;
+    padding: 0.6em 1em;
+    transition: var(--transition);
+    background-color: #fff4f4;
+    color: var(--dark-color);
 }
 
 .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(164, 212, 174, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(214, 10, 10, 0.2);
+    background-color: #fff4f4;
 }
 
-/* Navigation */
-.navbar {
-    border-radius: 0px 0px 25px 25px;
-    background: #FFF1A8;
-    box-shadow: 1px 13px 25px 0px rgba(75, 116, 71, 0.40);
-    font-family: 'Sunflower';
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    padding-top: 1.5rem;
-    padding-bottom: 1.5rem;
+.form-control::placeholder {
+    color: #cc8888;
 }
 
-.navbar-brand {
-    font-weight: 800;
-    font-size: 2rem;
-    color: var(--primary-color);
-    font-family: 'Sunflower';
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
+.form-select {
+    border-radius: 25px;
+    border: 2px solid #ff2424;
+    padding: 0.6em 1em;
+    background-color: #fff4f4;
+    color: var(--dark-color);
 }
 
-.navbar-brand i {
-    color: var(--primary-color);
-    margin-right: 8px;
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(214, 10, 10, 0.2);
 }
 
-/* 동술동술 브랜드 텍스트 스타일 */
-.brand-text-first {
-    color: #6E4924;
-    font-family: Sunflower;
-    font-size: 2rem;
-    font-style: normal;
-    font-weight: 700;
-    line-height: normal;
-}
-
-.brand-text-second {
-    color: #6AA84F;
-    font-family: Sunflower;
-    font-size: 2rem;
-    font-style: normal;
-    font-weight: 700;
-    line-height: normal;
-}
-
-/* Navbar 링크 스타일 추가 */
-.navbar-nav .nav-link {
-    font-family: 'Sunflower';
+.form-label {
     font-weight: 600;
     color: var(--dark-color);
-    border-radius: 15px;
-    padding: 8px 16px !important;
-    margin: 0 4px;
-    transition: var(--transition);
 }
 
-.navbar-nav .nav-link:hover {
+/* ============================================================
+   Status Badges
+   ============================================================ */
+.badge {
+    padding: 0.5em 0.8em;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.badge-pending {
+    background-color: #fbb317;
+    color: #3a3a3a;
+}
+
+.badge-cooking {
+    background-color: #ff8700;
+    color: #ffffff;
+}
+
+.badge-completed {
+    background-color: #3ab326;
+    color: #ffffff;
+}
+
+/* Bootstrap badge overrides for Mario theme */
+.badge.bg-warning {
+    background-color: #fbb317 !important;
+    color: #3a3a3a;
+}
+
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+    color: #ffffff;
+}
+
+.badge.bg-success {
+    background-color: #3ab326 !important;
+    color: #ffffff;
+}
+
+.badge.bg-info {
+    background-color: var(--accent-blue) !important;
+    color: #ffffff;
+}
+
+.badge.bg-danger {
+    background-color: var(--primary-color) !important;
+    color: #ffffff;
+}
+
+.badge.bg-secondary {
+    background-color: #888888 !important;
+    color: #ffffff;
+}
+
+/* ============================================================
+   Table Styles
+   ============================================================ */
+.table {
+    background-color: #ffffff;
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.table thead th {
     background-color: var(--primary-color);
-    color: white;
-    transform: translateY(-1px);
+    color: #ffffff;
+    border-bottom: none;
+    font-weight: 600;
+    text-shadow: var(--shadow-text);
 }
 
-/* Kitchen Display */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #fff4f4;
+}
+
+.table-warning {
+    background-color: #fff3e0 !important;
+}
+
+/* ============================================================
+   Kitchen Display
+   ============================================================ */
 .kitchen-order {
-    background-color: var(--light-color);
-    border-radius: var(--border-radius);
+    background-color: #ffffff;
+    border-radius: var(--border-radius-sm);
     padding: 1.5rem;
     margin-bottom: 1rem;
-    box-shadow: var(--box-shadow);
-    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    border: none;
+    border-left: 5px solid var(--primary-color);
     transition: var(--transition);
 }
 
 .kitchen-order:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .kitchen-order-header {
@@ -456,7 +1114,7 @@ body {
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid #ececec;
 }
 
 .kitchen-order-items {
@@ -470,49 +1128,101 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 0.8rem 0;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #ececec;
 }
 
-/* Admin Panel */
+/* ============================================================
+   Admin Panel
+   ============================================================ */
 .admin-sidebar {
-    background-color: var(--light-color);
-    border-radius: var(--border-radius);
+    background-color: #2a0000;
+    border-radius: var(--border-radius-sm);
     padding: 1.5rem;
-    box-shadow: var(--box-shadow);
-    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    border: none;
+    color: #ffffff;
 }
 
 .admin-sidebar .nav-link {
-    color: var(--dark-color);
+    color: #ffffff;
     padding: 0.8em 1em;
-    border-radius: var(--border-radius);
+    border-radius: 20px;
     transition: var(--transition);
     margin-bottom: 0.5rem;
+    font-weight: 500;
 }
 
 .admin-sidebar .nav-link:hover {
     background-color: var(--primary-color);
-    color: white;
+    color: #ffffff;
     transform: translateX(5px);
 }
 
 .admin-sidebar .nav-link.active {
-    background-color: var(--primary-color);
-    color: white;
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    color: #ffffff;
+    text-shadow: var(--shadow-text);
 }
 
-/* Toast Notifications */
+/* ============================================================
+   Toast Notifications
+   ============================================================ */
 .toast {
     position: fixed;
     top: 20px;
     right: 20px;
-    background-color: var(--light-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    background-color: #ffffff;
+    border-radius: 25px;
+    box-shadow: var(--shadow-card);
     padding: 1rem;
     z-index: 1000;
-    border: 2px solid var(--border-color);
+    border-left: 5px solid var(--primary-color);
     animation: slideIn 0.3s ease-out;
+    color: var(--dark-color);
+}
+
+/* ============================================================
+   QR Code Display
+   ============================================================ */
+.qr-code-container {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow-card);
+    text-align: center;
+    border: none;
+}
+
+.qr-code-container img {
+    max-width: 200px;
+    height: auto;
+    border-radius: 20px;
+}
+
+/* ============================================================
+   Loading Spinner
+   ============================================================ */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #ececec;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* ============================================================
+   Animations & Keyframes
+   ============================================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes slideIn {
@@ -520,92 +1230,16 @@ body {
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* QR Code Display */
-.qr-code-container {
-    background-color: var(--light-color);
-    padding: 1.5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    text-align: center;
-    border: 2px solid var(--border-color);
-}
-
-.qr-code-container img {
-    max-width: 200px;
-    height: auto;
-    border-radius: var(--border-radius);
-}
-
-/* Loading Spinner */
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid var(--border-color);
-    border-top: 4px solid var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    :root {
-        --border-radius: 12px;
-    }
-    
-    .container {
-        padding: 0 1rem;
-    }
-    
-    .card {
-        margin-bottom: 1rem;
-    }
-    
-    .card-body {
-        padding: 1rem;
-    }
-    
-    /* Chat Mobile Styles */
-    .chat-container {
-        height: 60vh;
-    }
-    
-    .chat-message {
-        max-width: 85%;
-        padding: 0.6rem;
-    }
-    
-    .online-users {
-        padding: 0.8rem;
-    }
-    
-    .online-user {
-        font-size: 0.8rem;
-        padding: 0.2rem 0.6rem;
-    }
-    
-    .chat-input-container {
-        padding: 0.8rem;
-    }
-    
-    .welcome-message {
-        padding: 1.5rem;
-    }
-    
-    .message-header {
-        font-size: 0.7rem;
-    }
-    
-    .message-content {
-        font-size: 0.9rem;
-    }
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
 }
 
-/* 테이블 카드 애니메이션 딜레이 */
+/* Animation delay classes */
 .delay-1 { animation-delay: 0.1s; }
 .delay-2 { animation-delay: 0.2s; }
 .delay-3 { animation-delay: 0.3s; }
@@ -655,67 +1289,11 @@ body {
 .delay-47 { animation-delay: 4.7s; }
 .delay-48 { animation-delay: 4.8s; }
 .delay-49 { animation-delay: 4.9s; }
-.delay-50 { animation-delay: 5.0s; } /* Cache buster 05/25/2025 21:58:14 */
+.delay-50 { animation-delay: 5.0s; }
 
-/* Font cache buster */
-
-/* 카테고리별 수량 조절 버튼 색상 */
-.category-table .quantity-btn {
-    background-color: #F0C5A5;
-    border-color: var(--border-color);
-    color: #6E4924;
-}
-
-.category-table .quantity-btn:hover {
-    background-color: #e8b896;
-    color: #6E4924;
-}
-
-.category-set_menu .quantity-btn {
-    background-color: #F4C2C2;
-    border-color: var(--border-color);
-    color: #6E4924;
-}
-
-.category-set_menu .quantity-btn:hover {
-    background-color: #f0b3b3;
-    color: #6E4924;
-}
-
-.category-main_dishes .quantity-btn {
-    background-color: #6AA84F;
-    border-color: var(--border-color);
-    color: white;
-}
-
-.category-main_dishes .quantity-btn:hover {
-    background-color: #5e9946;
-    color: white;
-}
-
-.category-side_dishes .quantity-btn {
-    background-color: #A2CFEA;
-    border-color: var(--border-color);
-    color: #6E4924;
-}
-
-.category-side_dishes .quantity-btn:hover {
-    background-color: #92c6e7;
-    color: #6E4924;
-}
-
-.category-drinks .quantity-btn {
-    background-color: #A2CFEA;
-    border-color: var(--border-color);
-    color: #6E4924;
-}
-
-.category-drinks .quantity-btn:hover {
-    background-color: #92c6e7;
-    color: #6E4924;
-}
-
-/* Header Icon Styles */
+/* ============================================================
+   Header Icon Styles
+   ============================================================ */
 .header-icon {
     width: 24px;
     height: 24px;
@@ -723,18 +1301,19 @@ body {
     vertical-align: middle;
 }
 
-/* 테이블 번호 제목 아이콘 (더 크게) */
 h2 .header-icon {
     width: 36px;
     height: 36px;
 }
 
-/* 테이블 번호 제목 텍스트 색상 */
+/* Table number title color */
 h2 {
-    color: #6E4924;
+    color: var(--primary-color);
 }
 
-/* Chat Styles */
+/* ============================================================
+   Chat Styles — Mario theme (red/dark-red accents)
+   ============================================================ */
 .chat-container {
     height: 70vh;
     display: flex;
@@ -745,12 +1324,13 @@ h2 {
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
-    background-color: var(--light-color);
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    background-color: #ffffff;
+    border: none;
+    border-radius: 25px 25px 0 0;
     margin-bottom: 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--primary-color) var(--light-color);
+    scrollbar-color: var(--primary-color) #ececec;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -758,7 +1338,7 @@ h2 {
 }
 
 .chat-messages::-webkit-scrollbar-track {
-    background: var(--light-color);
+    background: #ececec;
     border-radius: 4px;
 }
 
@@ -770,22 +1350,34 @@ h2 {
 .chat-message {
     margin-bottom: 1rem;
     padding: 0.8rem;
-    border-radius: 12px;
+    border-radius: 16px;
     max-width: 70%;
     word-wrap: break-word;
     animation: fadeIn 0.3s ease-out;
 }
 
 .chat-message.my-message {
-    background-color: var(--primary-color);
-    color: white;
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    color: #ffffff;
     margin-left: auto;
     text-align: right;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .chat-message.other-message {
-    background-color: white;
-    border: 2px solid var(--border-color);
+    background-color: #fff4f4;
+    border: 2px solid var(--primary-color);
+    color: var(--dark-color);
+}
+
+.chat-message.system-message {
+    background: linear-gradient(135deg, #fec954, #fbb317);
+    color: var(--dark-color);
+    text-align: center;
+    margin: 1rem auto;
+    max-width: 90%;
+    font-weight: 500;
+    border-radius: 20px;
 }
 
 .message-header {
@@ -801,20 +1393,22 @@ h2 {
 }
 
 .chat-input-container {
-    background-color: white;
+    background-color: #ffffff;
     padding: 1rem;
-    border: 2px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    border: none;
+    border-radius: 0 0 25px 25px;
+    box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.06);
 }
 
 .online-users {
-    background-color: var(--secondary-color);
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
+    background-color: #2a0000;
+    border: none;
+    border-radius: 25px;
     padding: 1rem;
     margin-bottom: 1rem;
     transition: var(--transition);
+    color: #ffffff;
+    box-shadow: var(--shadow-card);
 }
 
 .online-user {
@@ -824,20 +1418,21 @@ h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: var(--light-color);
-    border: 1px solid #e0e0e0;
+    background-color: #ffffff;
+    border: 1px solid #ececec;
     font-size: 0.9rem;
     transition: all 0.2s ease;
+    color: var(--dark-color);
 }
 
 .welcome-message {
     text-align: center;
     padding: 2rem;
-    background-color: var(--info-color);
-    border-radius: var(--border-radius);
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    border-radius: 25px;
     margin-bottom: 1rem;
-    color: var(--dark-color);
-    box-shadow: var(--box-shadow);
+    color: #ffffff;
+    box-shadow: var(--shadow-card);
 }
 
 .chat-loading {
@@ -852,8 +1447,9 @@ h2 {
     font-size: 0.8rem;
     padding: 0.5rem;
     text-align: center;
-    background-color: var(--info-color);
-    border-radius: 8px;
+    background-color: #fec954;
+    color: var(--dark-color);
+    border-radius: 10px;
     margin-bottom: 0.5rem;
     font-weight: 500;
     transition: var(--transition);
@@ -874,7 +1470,7 @@ h2 {
     transform: translateY(-50%);
     border: none;
     background: var(--primary-color);
-    color: white;
+    color: #ffffff;
     border-radius: 50%;
     width: 35px;
     height: 35px;
@@ -885,11 +1481,61 @@ h2 {
 }
 
 .chat-send-btn:hover {
-    background: #92c7a1;
+    background: var(--primary-dark);
     transform: translateY(-50%) scale(1.1);
 }
 
-/* Gift Order Modal Styles */
+/* System message override */
+.chat-message.system-message {
+    background: linear-gradient(135deg, #fec954, #fbb317);
+    color: var(--dark-color);
+    text-align: center;
+    margin: 1rem auto;
+    max-width: 90%;
+    font-weight: 500;
+    border: none;
+    border-radius: 20px;
+}
+
+/* Private message styles — Mario theme */
+.chat-message.private-message {
+    border-left: 3px solid var(--accent-yellow);
+    background: linear-gradient(135deg, #fff8e1, #fff3cd);
+    color: var(--dark-color);
+}
+
+.chat-message.private-message.my-message {
+    border-left: 3px solid var(--accent-orange);
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    color: var(--dark-color);
+}
+
+.private-mode-indicator {
+    margin-bottom: 1rem;
+}
+
+/* Clickable online user */
+.online-user.clickable {
+    cursor: pointer;
+    background: linear-gradient(135deg, #fff4f4, #fde8e8);
+    border-color: var(--primary-color);
+}
+
+.online-user.clickable:hover {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.online-count {
+    font-size: 0.8rem;
+    color: #ffffff;
+}
+
+/* ============================================================
+   Gift Order Modal Styles
+   ============================================================ */
 .order-step {
     min-height: 300px;
 }
@@ -906,13 +1552,14 @@ h2 {
 
 .table-card.border-primary {
     border-color: var(--primary-color) !important;
-    background-color: var(--light-color) !important;
+    background-color: #fff4f4 !important;
 }
 
 .menu-item-card {
     transition: all 0.3s ease;
     cursor: pointer;
-    border: 2px solid var(--border-color);
+    border: 2px solid #ececec;
+    border-radius: 25px;
 }
 
 .menu-item-card:hover {
@@ -922,124 +1569,271 @@ h2 {
 
 .menu-item-card.border-primary {
     border-color: var(--primary-color) !important;
-    background-color: var(--light-color) !important;
+    background-color: #fff4f4 !important;
 }
 
-.quantity-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.quantity-controls button {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-}
-
-/* System Message Styles */
-.chat-message.system-message {
-    background: linear-gradient(135deg, var(--success-color), var(--info-color));
-    color: var(--dark-color);
-    text-align: center;
-    margin: 1rem auto;
-    max-width: 90%;
-    font-weight: 500;
-    border: 2px solid var(--border-color);
-}
-
-/* Chat Input Group Styles */
-.chat-input-group {
-    position: relative;
-}
-
-.chat-input-group .form-control {
-    padding-right: 50px;
-}
-
-.chat-send-btn {
-    position: absolute;
-    right: 5px;
-    top: 50%;
-    transform: translateY(-50%);
-    border: none;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: var(--transition);
-}
-
-.chat-send-btn:hover {
-    background: #92c7a1;
-    transform: translateY(-50%) scale(1.1);
-}
-
-/* Loading Spinner for Buttons */
+/* ============================================================
+   Loading Spinner for Buttons
+   ============================================================ */
 .spinner-border-sm {
     width: 1rem;
     height: 1rem;
 }
 
-/* Modal Responsiveness */
+/* ============================================================
+   Alert Overrides — Mario theme
+   ============================================================ */
+.alert-info {
+    background-color: #e3f2fd;
+    border-color: var(--accent-blue);
+    color: var(--dark-color);
+    border-radius: 20px;
+}
+
+.alert-success {
+    background-color: #e8f5e9;
+    border-color: var(--accent-green);
+    color: var(--dark-color);
+    border-radius: 20px;
+}
+
+.alert-warning {
+    background-color: #fff8e1;
+    border-color: var(--accent-yellow);
+    color: var(--dark-color);
+    border-radius: 20px;
+}
+
+.alert-danger {
+    background-color: #fde8e8;
+    border-color: var(--primary-color);
+    color: var(--dark-color);
+    border-radius: 20px;
+}
+
+/* ============================================================
+   Modal Overrides
+   ============================================================ */
+.modal-content {
+    border-radius: 25px;
+    border: none;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+
+.modal-header {
+    background: linear-gradient(var(--primary-light), var(--primary-color));
+    color: #ffffff;
+    border-bottom: none;
+    text-shadow: var(--shadow-text);
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+.modal-footer {
+    border-top: none;
+    background-color: #fafafa;
+}
+
+.modal-title {
+    color: #ffffff;
+}
+
+/* ============================================================
+   Sticky Order Summary Card
+   ============================================================ */
+.order-summary-card {
+    border-radius: var(--border-radius);
+    border: none;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+
+/* ============================================================
+   Responsive Design
+   ============================================================ */
 @media (max-width: 768px) {
+    :root {
+        --border-radius: 25px;
+        --border-radius-sm: 18px;
+    }
+
+    .container {
+        padding: 0 1rem;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Chat mobile styles */
+    .chat-container {
+        height: 60vh;
+    }
+
+    .chat-message {
+        max-width: 85%;
+        padding: 0.6rem;
+    }
+
+    .online-users {
+        padding: 0.8rem;
+    }
+
+    .online-user {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.6rem;
+    }
+
+    .chat-input-container {
+        padding: 0.8rem;
+    }
+
+    .welcome-message {
+        padding: 1.5rem;
+    }
+
+    .message-header {
+        font-size: 0.7rem;
+    }
+
+    .message-content {
+        font-size: 0.9rem;
+    }
+
+    /* Modal mobile adjustments */
     .modal-dialog {
         margin: 0.5rem;
     }
-    
+
     .order-step {
         min-height: 250px;
     }
-    
+
     .table-card {
         margin-bottom: 1rem;
     }
-    
+
     .menu-item-card {
         margin-bottom: 0.5rem;
     }
+
+    /* Cart bar mobile */
+    .cart-bar-fixed {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .qty-circle {
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+    }
 }
 
-/* 개인 메시지 스타일 */
-.chat-message.private-message {
-    border-left: 3px solid var(--warning-color);
-    background: linear-gradient(135deg, #fff3cd, #fef9e7);
+/* ============================================================
+   Scrollbar global override — Mario theme
+   ============================================================ */
+::-webkit-scrollbar {
+    width: 8px;
 }
 
-.chat-message.private-message.my-message {
-    border-left: 3px solid var(--info-color);
-    background: linear-gradient(135deg, #cce7ff, #e3f2fd);
-    color: #4B4B4B;
+::-webkit-scrollbar-track {
+    background: #ececec;
 }
 
-/* 개인 메시지 모드 표시 */
-.private-mode-indicator {
-    margin-bottom: 1rem;
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
 }
 
-/* 클릭 가능한 온라인 사용자 */
-.online-user.clickable {
-    cursor: pointer;
-    background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
-    border-color: var(--primary-color);
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
-.online-user.clickable:hover {
-    background: linear-gradient(135deg, var(--primary-color), #a3d5a3);
-    color: white;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+/* ============================================================
+   Selection color — Mario red
+   ============================================================ */
+::selection {
+    background-color: rgba(214, 10, 10, 0.25);
+    color: var(--dark-color);
 }
 
-.online-count {
-    font-size: 0.8rem;
-    color: #6E4924;
+/* ============================================================
+   Ordered list / Card header gradient spaces
+   ============================================================ */
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.bg-success {
+    background-color: var(--accent-green) !important;
+}
+
+.bg-warning {
+    background-color: var(--accent-yellow) !important;
+}
+
+.bg-danger {
+    background-color: var(--primary-color) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-success {
+    color: #3ab326 !important;
+}
+
+.text-warning {
+    color: #fbb317 !important;
+}
+
+.text-danger {
+    color: #d60a0a !important;
+}
+
+/* ============================================================
+   Input group overrides — Mario theme
+   ============================================================ */
+.input-group-text {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border: 2px solid var(--primary-color);
+    border-radius: 25px 0 0 25px;
+}
+
+.input-group .form-control {
+    border-radius: 0 25px 25px 0;
+    border-left: none;
+}
+
+.input-group .form-control:focus {
+    border-left: none;
+}
+
+.input-group .btn-primary {
+    border-radius: 0 25px 25px 0;
+}
+
+/* ============================================================
+   Horiz rule
+   ============================================================ */
+hr {
+    border-top: 1px solid #ececec;
+    opacity: 1;
+}
+
+/* ============================================================
+   Close button (white on dark bg)
+   ============================================================ */
+.btn-close-white {
+    filter: brightness(0) invert(1);
 }
