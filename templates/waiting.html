@@ -1,0 +1,82 @@
+{% extends "base_mario.html" %}
+
+{% block title %}웨이팅 등록 - 슈퍼 마시오{% endblock %}
+
+{% block content %}
+{% set subnav_state = '웨이팅 등록 중' %}
+{% include "partials/subnav.html" %}
+
+<section class="m-card m-info-card">
+    <h2>자리가 없으신가요?</h2>
+    <p>웨이팅을 등록하시면<br>자리가 나는 대로 연락드립니다.</p>
+</section>
+
+<div id="waiting-success" class="m-alert-success" style="display:none;">
+    <h2 style="font-family:var(--m-display);color:var(--m-red);margin:0 0 8px;">웨이팅이 등록되었습니다! 🎉</h2>
+    <p style="margin:0;">자리가 나는 대로 연락드리겠습니다.<br>잠시만 기다려 주세요.</p>
+</div>
+
+<form id="waitingForm" class="m-form">
+    <div class="m-field">
+        <label for="w-name">이름 *</label>
+        <input class="m-input" type="text" id="w-name" name="name" placeholder="홍길동" required>
+    </div>
+    <div class="m-field">
+        <label for="w-phone">전화번호 *</label>
+        <input class="m-input" type="tel" id="w-phone" name="phone" placeholder="010-0000-0000" required>
+    </div>
+    <div class="m-field">
+        <label for="w-party">인원수 *</label>
+        <select class="m-select" id="w-party" name="party_size" required>
+            <option value="">선택하세요</option>
+            {% for i in range(1, 16) %}
+            <option value="{{ i }}">{{ i }}명</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="m-field">
+        <label for="w-notes">특별 요청사항</label>
+        <input class="m-input" type="text" id="w-notes" name="notes" placeholder="예: 추가 의자 필요">
+    </div>
+    <button type="submit" class="m-btn m-submit">
+        <span class="m-btn-title">웨이팅 등록하기</span>
+    </button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const form = document.getElementById('waitingForm');
+const phone = document.getElementById('w-phone');
+phone.addEventListener('input', e => {
+    let v = e.target.value.replace(/[^0-9]/g, '');
+    if (v.length >= 3 && v.length <= 7) v = v.replace(/(\d{3})(\d{1,4})/, '$1-$2');
+    else if (v.length >= 8) v = v.replace(/(\d{3})(\d{4})(\d{1,4})/, '$1-$2-$3');
+    e.target.value = v;
+});
+form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    btn.disabled = true;
+    btn.querySelector('.m-btn-title').textContent = '등록 중...';
+    try {
+        const res = await fetch('/waiting/add', { method: 'POST', body: data });
+        const result = await res.json();
+        if (res.ok && result.success) {
+            form.style.display = 'none';
+            document.getElementById('waiting-success').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            alert(result.detail || '웨이팅 등록에 실패했습니다.');
+            btn.disabled = false;
+            btn.querySelector('.m-btn-title').textContent = '웨이팅 등록하기';
+        }
+    } catch (err) {
+        alert('웨이팅 등록 중 오류가 발생했습니다.');
+        btn.disabled = false;
+        btn.querySelector('.m-btn-title').textContent = '웨이팅 등록하기';
+    }
+});
+</script>
+{% endblock %}

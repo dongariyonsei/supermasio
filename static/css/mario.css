@@ -1,0 +1,314 @@
+/* ═══════════════════════════════════════════════════════════════
+   슈퍼 마시오 — Figma 디자인 테마 (고객 화면)
+   팔레트/타이포/컴포넌트는 Figma "슈퍼마시오 디자인" 파일 기준.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+    --m-red:        #d70a0a;   /* 헤더/버튼 메인 레드 */
+    --m-red-bright: #ff3333;   /* 그라데이션 상단 */
+    --m-red-accent: #ff2424;   /* 카드 테두리/포인트 */
+    --m-card-pink:  #fff5f5;   /* 연분홍 카드 배경 */
+    --m-bg:         #ededed;   /* 페이지 배경 */
+    --m-ink:        #3b3b3b;   /* 본문 진한 글자 */
+    --m-muted:      #666666;   /* 보조 글자 */
+    --m-white:      #ffffff;
+    --m-radius:     22px;
+    --m-radius-lg:  28px;
+    --m-shadow:     0 3px 21px -4px rgba(0,0,0,0.25);
+    --m-shadow-card:0 0 20px 0 rgba(0,0,0,0.18);
+    --m-maxw:       520px;
+    --m-display:    'SeoulNamsan', 'Black Han Sans', 'Jua', 'Sunflower', sans-serif;
+    --m-body:       'SeoulNamsan', 'Jua', 'Nanum Gothic', sans-serif;
+}
+
+/* ── 로컬에 설치된 서울남산체가 있으면 우선 사용 (없으면 Google fallback) ── */
+
+* { box-sizing: border-box; }
+
+body.mario-body {
+    margin: 0;
+    background: var(--m-bg);
+    color: var(--m-ink);
+    font-family: var(--m-body);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────  헤더  ───────────────────────────── */
+.mario-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--m-red);
+    box-shadow: 0 4px 18px rgba(82,82,82,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 18px;
+    min-height: 60px;
+}
+.mario-header .mh-logo img {
+    height: 38px;
+    display: block;
+}
+.mario-header .mh-title {
+    flex: 1;
+    text-align: center;
+    margin: 0;
+    color: #fff;
+    font-family: var(--m-display);
+    font-weight: 400;
+    font-size: clamp(1.4rem, 6vw, 2rem);
+    letter-spacing: 0.5px;
+    text-shadow: 0 3px 4px rgba(0,0,0,0.22);
+}
+.mario-header .mh-menu {
+    background: none;
+    border: 0;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    padding: 4px;
+    cursor: pointer;
+}
+/* 헤더 드롭다운(<details>) */
+.mh-nav { position: relative; }
+.mh-nav > summary { list-style: none; }
+.mh-nav > summary::-webkit-details-marker { display: none; }
+.mh-nav[open] > summary .mh-menu { opacity: 0.7; }
+.mh-nav-panel {
+    position: absolute;
+    right: 0;
+    top: 110%;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: var(--m-shadow);
+    min-width: 160px;
+    padding: 6px;
+    z-index: 60;
+}
+.mh-nav-panel a {
+    display: block;
+    padding: 12px 16px;
+    color: var(--m-ink);
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 10px;
+}
+.mh-nav-panel a:hover { background: var(--m-card-pink); color: var(--m-red); }
+
+/* ─────────────────────────────  레이아웃  ───────────────────────────── */
+.mario-main {
+    max-width: var(--m-maxw);
+    margin: 0 auto;
+    padding: 16px 16px 48px;
+}
+
+/* 흰 카드 패널 */
+.m-card {
+    background: var(--m-white);
+    border-radius: var(--m-radius-lg);
+    box-shadow: var(--m-shadow);
+    padding: 24px 20px;
+}
+
+/* 화면 상단 부스/네비 서브바 (메뉴/웨이팅/완료 화면 공통) */
+.m-subnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: var(--m-shadow);
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    font-size: clamp(10px, 3vw, 12px);
+    color: var(--m-muted);
+    font-weight: 700;
+    overflow: hidden;
+}
+.m-subnav .m-subnav-icon {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: var(--m-shadow-card);
+    display: grid; place-items: center;
+    flex: 0 0 auto;
+}
+.m-subnav .m-subnav-icon img { width: 24px; height: 24px; object-fit: contain; }
+.m-subnav .m-subnav-col { line-height: 1.35; min-width: 0; flex: 1 1 auto; }
+.m-subnav .m-subnav-col.right { text-align: right; }
+.m-subnav .m-subnav-col strong { color: var(--m-ink); display: block; }
+
+/* 섹션 배너 (그라데이션 레드) */
+.m-banner {
+    background: linear-gradient(180deg, var(--m-red-bright) 0%, var(--m-red) 100%);
+    border-radius: 18px;
+    box-shadow: var(--m-shadow);
+    color: #fff;
+    text-align: center;
+    font-family: var(--m-display);
+    font-weight: 400;
+    font-size: clamp(1.5rem, 6vw, 2.1rem);
+    padding: 16px;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.15);
+    margin: 18px 0;
+}
+
+/* 레드 그라데이션 버튼 (홈/CTA) */
+.m-btn {
+    display: block;
+    width: 100%;
+    border: 2px solid #fff;
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--m-red-bright) 0%, var(--m-red) 100%);
+    box-shadow: var(--m-shadow);
+    color: #fff;
+    text-decoration: none;
+    text-align: center;
+    font-family: var(--m-display);
+    padding: 18px 16px;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+.m-btn:hover { filter: brightness(1.05); }
+.m-btn:active { transform: translateY(1px); }
+.m-btn .m-btn-title {
+    display: block;
+    color: #fff;
+    font-size: clamp(1.5rem, 6.5vw, 2.1rem);
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+.m-btn .m-btn-sub {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--m-body);
+    font-weight: 700;
+    font-size: clamp(0.8rem, 3.4vw, 1rem);
+    color: rgba(255,255,255,0.92);
+}
+.m-btn:disabled, .m-btn.is-disabled {
+    background: #c9c4bd;
+    border-color: #fff;
+    filter: none;
+    cursor: not-allowed;
+}
+
+/* 보조(흰 배경) 버튼 */
+.m-btn-outline {
+    background: #fff;
+    color: var(--m-red);
+    border: 2px solid var(--m-red);
+}
+.m-btn-outline .m-btn-title { color: var(--m-red); text-shadow: none; }
+
+/* ─────────────────────────────  홈 화면  ───────────────────────────── */
+.home-card { text-align: center; padding: 28px 22px 30px; }
+.home-logo {
+    width: min(78%, 360px);
+    height: auto;
+    margin: 6px auto 22px;
+    display: block;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.18));
+}
+.home-welcome {
+    color: var(--m-ink);
+    font-family: var(--m-display);
+    font-weight: 400;
+    font-size: clamp(1.15rem, 4.6vw, 1.6rem);
+    line-height: 1.45;
+    margin: 0 0 26px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    word-break: keep-all;
+}
+.home-actions { display: grid; gap: 18px; }
+
+/* ─────────────────────────────  테이블 선택 화면  ───────────────────────────── */
+.table-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+.table-card-link { text-decoration: none; }
+.table-card-m {
+    background: var(--m-card-pink);
+    border: 2px solid var(--m-red-accent);
+    border-radius: var(--m-radius);
+    box-shadow: var(--m-shadow);
+    padding: 16px 8px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.table-card-m:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(215,10,10,0.22); }
+.table-card-m img { width: 56px; height: 52px; object-fit: contain; }
+.table-card-m .tc-label {
+    font-family: var(--m-display);
+    font-weight: 400;
+    color: var(--m-red-accent);
+    font-size: clamp(1rem, 4.5vw, 1.4rem);
+    line-height: 1;
+}
+@media (max-width: 360px) {
+    .table-grid { gap: 10px; }
+    .table-card-m { padding: 12px 4px 10px; }
+}
+
+/* ─────────────────────────────  웨이팅 등록 화면  ───────────────────────────── */
+.m-info-card {
+    text-align: center;
+    padding: 22px 20px;
+    margin-bottom: 16px;
+}
+.m-info-card h2 {
+    font-family: var(--m-display);
+    color: var(--m-red);
+    font-size: clamp(1.3rem, 5.4vw, 1.8rem);
+    margin: 0 0 10px;
+}
+.m-info-card p { color: var(--m-muted); font-weight: 700; margin: 0; line-height: 1.5; }
+
+.m-form { display: grid; gap: 18px; }
+.m-field { display: grid; gap: 8px; }
+.m-field label {
+    font-family: var(--m-display);
+    color: var(--m-ink);
+    font-size: clamp(1.05rem, 4.4vw, 1.35rem);
+    text-align: center;
+}
+.m-input, .m-select {
+    width: 100%;
+    border: 2px solid var(--m-red-accent);
+    border-radius: 16px;
+    background: var(--m-card-pink);
+    color: var(--m-ink);
+    font-family: var(--m-body);
+    font-weight: 700;
+    font-size: 1.05rem;
+    padding: 14px 18px;
+    text-align: center;
+    appearance: none;
+    outline: none;
+}
+.m-input::placeholder { color: #c79a9a; }
+.m-input:focus, .m-select:focus { border-color: var(--m-red); background: #fff; }
+.m-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23d70a0a'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    background-size: 16px;
+}
+.m-submit { margin-top: 6px; }
+.m-alert-success {
+    background: var(--m-card-pink);
+    border: 2px solid var(--m-red-accent);
+    border-radius: var(--m-radius);
+    color: var(--m-ink);
+    text-align: center;
+    padding: 18px;
+    font-weight: 700;
+}

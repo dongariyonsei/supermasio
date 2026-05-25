@@ -51,6 +51,29 @@ def get_kst_today_start():
     """오늘 00:00:00 한국 시간을 반환"""
     return get_kst_now().replace(hour=0, minute=0, second=0, microsecond=0)
 
+def ensure_kst(dt):
+    """DB에서 읽어온 naive datetime을 KST aware로 정규화한다.
+    SQLite는 timezone 정보를 보존하지 않으므로 비교 전에 항상 정규화해야 한다."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    if dt.tzinfo is None:
+        return KST.localize(dt)
+    return dt.astimezone(KST)
+
+# ─────────────────────────────────────────────────────────────
+# 중앙 집중식 서버 설정 (환경 변수로 재정의 가능, 안전한 기본값 제공)
+# ─────────────────────────────────────────────────────────────
+TABLE_SESSION_DURATION_MINUTES = int(os.getenv("TABLE_SESSION_DURATION_MINUTES", "60"))
+TABLE_SESSION_EXPIRING_SOON_MINUTES = int(os.getenv("TABLE_SESSION_EXPIRING_SOON_MINUTES", "10"))
+TABLE_COUNT = int(os.getenv("TABLE_COUNT", "50"))
+# 한 번에 생성 가능한 쿠폰 최대 개수
+COUPON_MAX_BATCH = int(os.getenv("COUPON_MAX_BATCH", "500"))
+
 # Custom Jinja2 filter to convert to KST and format
 def to_kst_filter(dt):
     if not dt: # Handle None or empty values
@@ -172,7 +195,15 @@ class Order(Base):
     cancellation_reason = Column(String, nullable=True)  # 취소 사유
     created_at = Column(DateTime, default=get_kst_now)
     confirmed_at = Column(DateTime, nullable=True)
-    
+
+    # 쿠폰/할인 관련 (하위 호환: 기존 코드는 amount = 최종 결제 금액을 계속 사용)
+    original_amount = Column(Integer, nullable=True)   # 할인 전 소계
+    discount_amount = Column(Integer, nullable=True)   # 적용된 할인 금액
+    final_amount = Column(Integer, nullable=True)      # 최종 결제 금액 (= amount)
+    coupon_id = Column(Integer, ForeignKey("coupons.id"), nullable=True)
+    # 테이블 세션 연결
+    table_session_id = Column(Integer, ForeignKey("table_sessions.id"), nullable=True)
+
     # 관계 설정
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
 
@@ -237,8 +268,86 @@ class Waiting(Base):
     cancelled_at = Column(DateTime, nullable=True)  # 취소 시간
     table_id = Column(Integer, nullable=True)  # 배정된 테이블 번호
 
-# 데이터베이스 테이블 생성
+class TableSession(Base):
+    """테이블 타임 세션. DB가 진실의 원천(source of truth)이다."""
+    __tablename__ = "table_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(Integer, index=True, nullable=False)
+    nickname = Column(String, nullable=False)
+    started_at = Column(DateTime, nullable=False, default=get_kst_now)
+    expires_at = Column(DateTime, nullable=False)
+    status = Column(String, default="active", index=True)  # 'active', 'expired', 'ended'
+    ended_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    ended_by = Column(String, nullable=True)     # 'admin', 'system'
+    end_reason = Column(String, nullable=True)    # 'admin_reset', 'expired'
+    created_at = Column(DateTime, default=get_kst_now)
+    updated_at = Column(DateTime, default=get_kst_now, onupdate=get_kst_now)
+
+
+class Coupon(Base):
+    """예약 쿠폰. 관리자가 생성하고 고객이 주문 시 사용한다."""
+    __tablename__ = "coupons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True, nullable=False)
+    discount_type = Column(String, nullable=False)   # 'fixed_amount', 'percent'
+    discount_value = Column(Integer, nullable=False)
+    status = Column(String, default="unused", index=True)  # 'unused', 'redeemed', 'disabled', 'expired'
+    created_at = Column(DateTime, default=get_kst_now)
+    expires_at = Column(DateTime, nullable=True)
+    redeemed_at = Column(DateTime, nullable=True)
+    redeemed_order_id = Column(Integer, nullable=True)
+    redeemed_table_id = Column(Integer, nullable=True)
+    redeemed_session_id = Column(Integer, nullable=True)
+    # 선택적 메타데이터 (예약 정보)
+    memo = Column(String, nullable=True)
+    reservation_name = Column(String, nullable=True)
+    reservation_contact = Column(String, nullable=True)
+
+
+# 데이터베이스 테이블 생성 (없는 테이블만 생성)
 Base.metadata.create_all(bind=engine)
+
+
+def run_migrations():
+    """기존 배포된 SQLite DB를 위한 경량 마이그레이션.
+    create_all 은 기존 테이블에 새 컬럼을 추가하지 못하므로, 누락된 nullable 컬럼을
+    안전하게 ADD COLUMN 한다. 파괴적 변경은 하지 않으며 기존 데이터를 보존한다."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    # orders 테이블에 누락된 쿠폰/세션 컬럼 추가
+    if "orders" in existing_tables:
+        order_cols = {c["name"] for c in inspector.get_columns("orders")}
+        missing = []
+        for col_name, col_type in [
+            ("original_amount", "INTEGER"),
+            ("discount_amount", "INTEGER"),
+            ("final_amount", "INTEGER"),
+            ("coupon_id", "INTEGER"),
+            ("table_session_id", "INTEGER"),
+        ]:
+            if col_name not in order_cols:
+                missing.append((col_name, col_type))
+        if missing:
+            with engine.begin() as conn:
+                for col_name, col_type in missing:
+                    conn.execute(text(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}"))
+                    print(f"[migration] orders.{col_name} 컬럼 추가됨")
+
+    # 테이블당 active 세션이 1개만 존재하도록 부분 유니크 인덱스 생성.
+    # 동시 닉네임 등록(near-simultaneous)으로 인한 중복 active 세션을 DB 레벨에서 방지한다.
+    with engine.begin() as conn:
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_active_table_session "
+            "ON table_sessions(table_id) WHERE status='active'"
+        ))
+
+
+run_migrations()
 
 # 의존성
 def get_db():
@@ -247,6 +356,124 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# ─────────────────────────────────────────────────────────────
+# 테이블 세션 헬퍼 (DB가 진실의 원천)
+# ─────────────────────────────────────────────────────────────
+def expire_stale_sessions(db: Session, table_id: int = None):
+    """만료 시각이 지난 active 세션들을 expired 로 전환한다.
+    table_id 가 주어지면 해당 테이블만 처리한다. 변경 건수를 반환한다."""
+    now = get_kst_now()
+    q = db.query(TableSession).filter(TableSession.status == "active")
+    if table_id is not None:
+        q = q.filter(TableSession.table_id == table_id)
+    changed = 0
+    for sess in q.all():
+        if ensure_kst(sess.expires_at) is not None and now >= ensure_kst(sess.expires_at):
+            sess.status = "expired"
+            sess.ended_at = now
+            sess.ended_by = "system"
+            sess.end_reason = "expired"
+            changed += 1
+    if changed:
+        db.commit()
+    return changed
+
+
+def get_active_session(db: Session, table_id: int):
+    """해당 테이블의 현재 active(만료되지 않은) 세션을 반환. 없으면 None.
+    읽기 시점에 만료된 세션은 lazily expired 처리한다."""
+    expire_stale_sessions(db, table_id)
+    return (
+        db.query(TableSession)
+        .filter(TableSession.table_id == table_id, TableSession.status == "active")
+        .order_by(TableSession.id.desc())
+        .first()
+    )
+
+
+def session_remaining_seconds(sess: TableSession):
+    """세션의 남은 시간(초). 만료되었으면 0."""
+    if sess is None:
+        return 0
+    expires = ensure_kst(sess.expires_at)
+    if expires is None:
+        return 0
+    delta = (expires - get_kst_now()).total_seconds()
+    return max(0, int(delta))
+
+
+def build_session_status(db: Session, table_id: int):
+    """고객/관리자 폴링용 세션 상태 dict 를 구성한다."""
+    sess = get_active_session(db, table_id)
+    now = get_kst_now()
+    if sess is None:
+        return {
+            "table_id": table_id,
+            "session_id": None,
+            "nickname": None,
+            "status": "empty",
+            "started_at": None,
+            "expires_at": None,
+            "server_now": now.isoformat(),
+            "remaining_seconds": 0,
+            "is_expiring_soon": False,
+            "can_order": False,
+        }
+    remaining = session_remaining_seconds(sess)
+    is_soon = 0 < remaining <= TABLE_SESSION_EXPIRING_SOON_MINUTES * 60
+    return {
+        "table_id": table_id,
+        "session_id": sess.id,
+        "nickname": sess.nickname,
+        "status": "expiring_soon" if is_soon else "active",
+        "started_at": ensure_kst(sess.started_at).isoformat() if sess.started_at else None,
+        "expires_at": ensure_kst(sess.expires_at).isoformat() if sess.expires_at else None,
+        "server_now": now.isoformat(),
+        "remaining_seconds": remaining,
+        "is_expiring_soon": is_soon,
+        "can_order": remaining > 0,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# 쿠폰 헬퍼
+# ─────────────────────────────────────────────────────────────
+# 사람이 입력하기 쉬운 코드 생성을 위한 문자 집합 (혼동되는 0/O/1/I/L 제외)
+COUPON_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def generate_coupon_code():
+    """SM-XXXX-XXXX 형식의 암호학적으로 안전한 쿠폰 코드 생성."""
+    def block(n):
+        return "".join(secrets.choice(COUPON_ALPHABET) for _ in range(n))
+    return f"SM-{block(4)}-{block(4)}"
+
+
+def normalize_coupon_code(code: str) -> str:
+    """입력된 쿠폰 코드를 정규화한다 (대문자, 공백 제거)."""
+    if not code:
+        return ""
+    return code.strip().upper().replace(" ", "")
+
+
+def coupon_is_expired(coupon: Coupon) -> bool:
+    if coupon.expires_at is None:
+        return False
+    exp = ensure_kst(coupon.expires_at)
+    return exp is not None and get_kst_now() >= exp
+
+
+def compute_discount(coupon: Coupon, subtotal: int) -> int:
+    """쿠폰과 소계로 할인 금액을 계산한다. 최종 금액이 음수가 되지 않도록 상한 적용."""
+    if coupon.discount_type == "fixed_amount":
+        discount = int(coupon.discount_value)
+    elif coupon.discount_type == "percent":
+        discount = int(subtotal * int(coupon.discount_value) / 100)
+    else:
+        discount = 0
+    discount = max(0, discount)
+    return min(discount, subtotal)  # 음수 총액 방지
 
 # 세트 메뉴 구성 정보 정의
 SET_MENU_COMPONENTS = {
@@ -503,6 +730,22 @@ def generate_qr_code(url: str, table_id: int) -> str:
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/table-select", response_class=HTMLResponse)
+async def table_select(request: Request):
+    """테이블 선택 그리드 화면 (Figma 'table_select')"""
+    return templates.TemplateResponse(
+        "table_select.html",
+        {"request": request, "table_count": TABLE_COUNT, "header_title": "테이블 선택"}
+    )
+
+@app.get("/waiting", response_class=HTMLResponse)
+async def waiting_page(request: Request):
+    """고객용 웨이팅 등록 화면 (Figma 'waiting')"""
+    return templates.TemplateResponse(
+        "waiting.html",
+        {"request": request, "header_title": "웨이팅"}
+    )
+
 # 채팅 페이지(구현 예정정)
 @app.get("/chat", response_class=HTMLResponse)
 async def chat(request: Request):
@@ -694,7 +937,7 @@ async def generate_all_qr(request: Request):
         zip_path = os.path.join(temp_dir, "table_qr_codes.zip")
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             base_url = request.base_url
-            for table_id in range(1, 51):
+            for table_id in range(1, TABLE_COUNT + 1):
                 order_url = f"{base_url}order?table={table_id}"
                 qr_path = generate_qr_code(order_url, table_id)
                 # ZIP 파일에 추가할 때 파일 이름만 사용
@@ -717,119 +960,219 @@ async def generate_all_qr(request: Request):
         shutil.rmtree(temp_dir)
         raise HTTPException(status_code=500, detail=str(e))
 
+def _has_expired_session(db: Session, table_id: int) -> bool:
+    """이 테이블에 방금 만료되어 (admin reset 되지 않은) 세션이 있는지 확인."""
+    latest = (
+        db.query(TableSession)
+        .filter(TableSession.table_id == table_id)
+        .order_by(TableSession.id.desc())
+        .first()
+    )
+    return latest is not None and latest.status == "expired"
+
+
 @app.get("/order", response_class=HTMLResponse)
 async def order_page(request: Request, table: int, db: Session = Depends(get_db)):
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
-    
+
+    # 세션 상태 결정: register(신규) / active(주문가능) / expired(만료-재등록 필요)
+    active = get_active_session(db, table)
+    if active is not None:
+        session_state = "active"
+        session_info = build_session_status(db, table)
+    elif _has_expired_session(db, table):
+        session_state = "expired"
+        session_info = None
+    else:
+        session_state = "register"
+        session_info = None
+
     return templates.TemplateResponse(
         "order.html",
         {
-            "request": request, 
-            "table_id": table, 
+            "request": request,
+            "table_id": table,
             "menu_items_by_category": menu_items_grouped_by_category,
             "category_display_names": category_display_names,
-            "menu_item_details_for_js": menu_item_details_for_js
+            "menu_item_details_for_js": menu_item_details_for_js,
+            "session_state": session_state,
+            "session_info": session_info,
+            "expiring_soon_minutes": TABLE_SESSION_EXPIRING_SOON_MINUTES,
+            "session_duration_minutes": TABLE_SESSION_DURATION_MINUTES,
         }
     )
+
+
+@app.post("/table-session/start")
+async def start_table_session(
+    request: Request,
+    table_id: int = Form(...),
+    nickname: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """닉네임을 등록하고 테이블 세션을 생성하거나, 이미 active 세션이 있으면 재사용한다.
+    완료 후 /order?table={table_id} 로 리다이렉트한다."""
+    from sqlalchemy.exc import IntegrityError
+
+    nickname = (nickname or "").strip()
+    if not nickname:
+        return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
+    nickname = nickname[:30]
+
+    # 만료된 active 세션 정리
+    expire_stale_sessions(db, table_id)
+
+    # 이미 active 세션이 있으면 재사용 (중복 생성 방지)
+    existing = get_active_session(db, table_id)
+    if existing is not None:
+        existing.last_seen_at = get_kst_now()
+        db.commit()
+        # in-memory 닉네임 맵도 호환을 위해 갱신
+        manager.set_nickname(table_id, existing.nickname)
+        return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
+
+    now = get_kst_now()
+    new_session = TableSession(
+        table_id=table_id,
+        nickname=nickname,
+        started_at=now,
+        expires_at=now + dt.timedelta(minutes=TABLE_SESSION_DURATION_MINUTES),
+        status="active",
+        last_seen_at=now,
+    )
+    db.add(new_session)
+    try:
+        db.commit()
+    except IntegrityError:
+        # 부분 유니크 인덱스 위반 = 동시 요청이 이미 active 세션을 만든 경우 → 재사용
+        db.rollback()
+        existing = get_active_session(db, table_id)
+        if existing is not None:
+            manager.set_nickname(table_id, existing.nickname)
+        return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
+
+    manager.set_nickname(table_id, nickname)
+    return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
+
+
+@app.get("/api/table-sessions/status")
+async def table_session_status(table_id: int, db: Session = Depends(get_db)):
+    """고객/관리자 폴링용 세션 상태 조회."""
+    return build_session_status(db, table_id)
 
 @app.post("/submit_order")
 async def submit_order(
     request: Request,
     table_id: int = Form(...),
     menu: str = Form(...),
+    coupon_code: str = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
-        print(f"Received order request - table_id: {table_id}, menu: {menu}")
-        
+        print(f"Received order request - table_id: {table_id}, menu: {menu}, coupon: {coupon_code}")
+
+        # 0. 테이블 세션 검증 (서버 측). 클라이언트 카운트다운은 신뢰하지 않는다.
+        active_session = get_active_session(db, table_id)
+        if active_session is None:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "session_expired",
+                    "message": "테이블 세션이 만료되었거나 존재하지 않습니다. 페이지를 새로고침하여 닉네임을 다시 등록해주세요."
+                }
+            )
+
         # 1. 메뉴 데이터 가져오기
         try:
             menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
-            print(f"Retrieved menu data - items: {menu_item_details_for_js}, names: {menu_names_by_id}")
         except Exception as e:
             print(f"Error getting menu data: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve menu data")
-        
+
         # 2. 주문 메뉴 파싱 및 유효성 검사
         try:
             order_menu = json.loads(menu)
             if not isinstance(order_menu, dict):
                 raise ValueError("Menu data must be a dictionary")
-            print(f"Parsed order menu: {order_menu}")
-        except json.JSONDecodeError as e:
-            print(f"Invalid JSON format: {str(e)}")
+        except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid menu data format")
         except ValueError as e:
-            print(f"Invalid menu data structure: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
-        
-        # 3. 주문 금액 계산 및 메뉴 유효성 검사
-        total_amount = 0
+
+        # 3. 주문 소계(original subtotal) 계산 및 메뉴 유효성 검사 (서버 측 가격 사용)
+        subtotal = 0
         valid_order_items = {}
-        
+
         for item_id, quantity in order_menu.items():
             try:
                 quantity = int(quantity)
                 if quantity <= 0:
-                    print(f"Warning: Invalid quantity {quantity} for item {item_id}")
                     continue
-                    
-                # item_id를 문자열로 변환하여 메뉴 아이템 조회
                 item = menu_item_details_for_js.get(str(item_id))
-                if not item:
-                    print(f"Warning: Menu item not found for ID {item_id}")
+                if not item or not item['is_active']:
                     continue
-                    
-                if not item['is_active']:
-                    print(f"Warning: Menu item {item_id} is not active")
-                    continue
-                
-                item_total = item['price'] * quantity
-                total_amount += item_total
+                subtotal += item['price'] * quantity
                 valid_order_items[item_id] = quantity
-                print(f"Added item {item_id}: {quantity} x {item['price']} = {item_total}")
-                
             except (ValueError, TypeError) as e:
                 print(f"Error processing item {item_id}: {str(e)}")
                 continue
-        
+
         if not valid_order_items:
             raise HTTPException(status_code=400, detail="No valid items in order")
-        
-        print(f"Final order items: {valid_order_items}")
-        print(f"Calculated total amount: {total_amount}")
-        
-        # 4. 주문 생성 및 메뉴 분해
+
+        # 4. 쿠폰 검증 (제공된 경우). 아직 사용 처리는 하지 않는다.
+        normalized_code = normalize_coupon_code(coupon_code) if coupon_code else ""
+        coupon = None
+        discount_amount = 0
+        if normalized_code:
+            coupon = db.query(Coupon).filter(Coupon.code == normalized_code).first()
+            if coupon is None:
+                raise HTTPException(status_code=400, detail={"error": "coupon_invalid", "message": "존재하지 않는 쿠폰 번호입니다."})
+            if coupon.status == "disabled":
+                raise HTTPException(status_code=400, detail={"error": "coupon_disabled", "message": "사용할 수 없는 쿠폰입니다."})
+            if coupon.status == "redeemed":
+                raise HTTPException(status_code=400, detail={"error": "coupon_used", "message": "이미 사용된 쿠폰입니다."})
+            if coupon.status == "expired" or coupon_is_expired(coupon):
+                if coupon.status != "expired":
+                    coupon.status = "expired"
+                    db.commit()
+                raise HTTPException(status_code=400, detail={"error": "coupon_expired", "message": "만료된 쿠폰입니다."})
+            if coupon.status != "unused":
+                raise HTTPException(status_code=400, detail={"error": "coupon_invalid", "message": "사용할 수 없는 쿠폰입니다."})
+            discount_amount = compute_discount(coupon, subtotal)
+
+        final_amount = max(0, subtotal - discount_amount)  # 음수 총액 방지
+
+        # 5~8. 단일 트랜잭션: 주문 생성 → 아이템 생성 → 쿠폰 원자적 사용 처리 → 1회 commit
         try:
-            # 기본 주문 생성
             order = Order(
                 table_id=table_id,
-                menu=valid_order_items,  # 원본 주문 정보 유지
-                amount=total_amount,
+                menu=valid_order_items,        # 원본 주문 정보 유지
+                amount=final_amount,           # 기존 호환: amount = 최종 결제 금액
+                original_amount=subtotal,
+                discount_amount=discount_amount,
+                final_amount=final_amount,
+                coupon_id=coupon.id if coupon else None,
+                table_session_id=active_session.id,
                 payment_status="pending"
             )
             db.add(order)
             db.flush()  # ID 생성을 위해 flush
-            
-            # 세트 메뉴 분해 및 OrderItem 생성
+
             decomposed_items = decompose_set_menu(valid_order_items, db)
-            print(f"Decomposed items: {decomposed_items}")
-            
             for item_data in decomposed_items:
-                # 특별 아이템 (menu_item_id가 None인 경우) 또는 상차림비는 자동으로 완료 처리
                 if item_data["menu_item_id"] is None:
                     cooking_status = "completed"
                     completed_at = get_kst_now()
                 else:
-                    # 상차림비인지 확인 (menu_item_id가 1)
                     menu_item = db.query(MenuItem).filter(MenuItem.id == item_data["menu_item_id"]).first()
                     if menu_item and menu_item.category == "table":
                         cooking_status = "completed"
-                        completed_at = datetime.utcnow()
+                        completed_at = get_kst_now()
                     else:
                         cooking_status = "pending"
                         completed_at = None
-                
+
                 order_item = OrderItem(
                     order_id=order.id,
                     menu_item_id=item_data["menu_item_id"],
@@ -841,43 +1184,65 @@ async def submit_order(
                     notes=item_data.get("notes")
                 )
                 db.add(order_item)
-            
+
+            # 쿠폰 원자적 사용 처리: status='unused' 인 행만 갱신.
+            # SQLite는 단일 writer 직렬화 + 조건부 UPDATE rowcount 검사로 동시 중복 사용을 방지한다.
+            if coupon is not None:
+                rows = db.query(Coupon).filter(
+                    Coupon.id == coupon.id,
+                    Coupon.status == "unused"
+                ).update(
+                    {
+                        Coupon.status: "redeemed",
+                        Coupon.redeemed_at: get_kst_now(),
+                        Coupon.redeemed_order_id: order.id,
+                        Coupon.redeemed_table_id: table_id,
+                        Coupon.redeemed_session_id: active_session.id,
+                    },
+                    synchronize_session=False
+                )
+                if rows == 0:
+                    # 동시 요청이 먼저 사용함 → 주문 생성 롤백 (주문 미생성)
+                    db.rollback()
+                    raise HTTPException(status_code=409, detail={"error": "coupon_used", "message": "쿠폰이 방금 사용되었습니다. 다시 시도해주세요."})
+
             db.commit()
             db.refresh(order)
-            print(f"Created order with ID: {order.id} and {len(decomposed_items)} order items")
+            print(f"Created order {order.id}: subtotal={subtotal}, discount={discount_amount}, final={final_amount}")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Database error: {str(e)}")
             db.rollback()
             raise HTTPException(status_code=500, detail="Failed to create order")
-        
-        # 5. WebSocket 알림 (실패해도 주문은 성공)
+
+        # WebSocket 알림 (실패해도 주문은 성공)
         try:
             await manager.broadcast(json.dumps({
                 "type": "new_order",
                 "order_id": order.id,
                 "table_id": table_id,
-                "amount": total_amount
+                "amount": final_amount
             }))
-            print("WebSocket notification sent")
         except Exception as ws_error:
             print(f"WebSocket error (non-critical): {str(ws_error)}")
-        
-        # 6. 주문 성공 페이지 반환
+
+        # 주문 성공 페이지 반환
         return templates.TemplateResponse(
             "order_success.html",
             {
                 "request": request,
                 "order": order,
                 "table_id": table_id,
-                "menu_names": menu_names_by_id
+                "menu_names": menu_names_by_id,
+                "coupon": coupon
             }
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         print(f"Unexpected error in submit_order: {str(e)}")
-        print(f"Error type: {type(e)}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
         db.rollback()
@@ -959,8 +1324,15 @@ async def admin_tables(
     # 테이블별 현재 상태 조회 (결제 대기, 조리 중, 완료 주문 수)
     table_stats = []
     
-    # 1번부터 50번까지 테이블 정보 조회
-    for table_id in range(1, 51):
+    # 만료된 active 세션을 일괄 정리하고, 테이블별 active 세션을 미리 조회
+    expire_stale_sessions(db)
+    active_sessions_by_table = {
+        s.table_id: s
+        for s in db.query(TableSession).filter(TableSession.status == "active").all()
+    }
+
+    # 1번부터 TABLE_COUNT 번까지 테이블 정보 조회
+    for table_id in range(1, TABLE_COUNT + 1):
         # 최신 주문 정보
         latest_order_info = db.query(latest_orders_subquery).filter(
             latest_orders_subquery.c.table_id == table_id
@@ -1022,8 +1394,27 @@ async def admin_tables(
         
         # 온라인 상태 확인
         is_online = table_id in manager.get_online_tables()
-        nickname = manager.get_nickname(table_id) if is_online else None
-        
+
+        # 테이블 세션 상태 결정
+        sess = active_sessions_by_table.get(table_id)
+        if sess is not None:
+            remaining = session_remaining_seconds(sess)
+            is_soon = 0 < remaining <= TABLE_SESSION_EXPIRING_SOON_MINUTES * 60
+            session_status = "expiring_soon" if is_soon else "active"
+            session_id = sess.id
+            session_nickname = sess.nickname
+            remaining_seconds = remaining
+            expires_at_iso = ensure_kst(sess.expires_at).isoformat() if sess.expires_at else None
+        else:
+            session_status = "empty"
+            session_id = None
+            session_nickname = None
+            remaining_seconds = 0
+            expires_at_iso = None
+
+        # 닉네임: 세션 닉네임 우선, 없으면 기존 in-memory 채팅 닉네임
+        nickname = session_nickname or (manager.get_nickname(table_id) if is_online else None)
+
         table_stats.append({
             'table_id': table_id,
             'latest_order_time': latest_order_info.latest_order_time if latest_order_info else None,
@@ -1035,7 +1426,12 @@ async def admin_tables(
             'cancelled_count': cancelled_count,
             'total_amount': total_amount,
             'is_online': is_online,
-            'nickname': nickname
+            'nickname': nickname,
+            'session_status': session_status,
+            'session_id': session_id,
+            'session_nickname': session_nickname,
+            'remaining_seconds': remaining_seconds,
+            'expires_at': expires_at_iso,
         })
     
     # 요약 통계 계산
@@ -1048,18 +1444,205 @@ async def admin_tables(
         'active_tables_count': sum(1 for table in table_stats if table['total_orders'] > 0),
         'today_completed_total': sum(table['completed_today'] for table in table_stats),
         'total_orders_sum': sum(table['total_orders'] for table in table_stats),
-        'total_revenue': sum(table['total_amount'] for table in table_stats)
+        'total_revenue': sum(table['total_amount'] for table in table_stats),
+        'session_active_count': sum(1 for table in table_stats if table['session_status'] in ('active', 'expiring_soon')),
     }
-    
+
     return templates.TemplateResponse(
         "admin_tables.html",
         {
             "request": request,
             "table_stats": table_stats,
             "summary_stats": summary_stats,
-            "username": username
+            "username": username,
+            "expiring_soon_minutes": TABLE_SESSION_EXPIRING_SOON_MINUTES,
         }
     )
+
+
+@app.get("/api/admin/table-sessions")
+async def admin_table_sessions(
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """모든 테이블(1..TABLE_COUNT)의 세션 상태와 남은 시간을 반환. 빈 테이블 포함."""
+    expire_stale_sessions(db)
+    active_by_table = {
+        s.table_id: s
+        for s in db.query(TableSession).filter(TableSession.status == "active").all()
+    }
+    now = get_kst_now()
+    tables = []
+    for table_id in range(1, TABLE_COUNT + 1):
+        sess = active_by_table.get(table_id)
+        if sess is not None:
+            remaining = session_remaining_seconds(sess)
+            is_soon = 0 < remaining <= TABLE_SESSION_EXPIRING_SOON_MINUTES * 60
+            tables.append({
+                "table_id": table_id,
+                "session_id": sess.id,
+                "nickname": sess.nickname,
+                "status": "expiring_soon" if is_soon else "active",
+                "started_at": ensure_kst(sess.started_at).isoformat() if sess.started_at else None,
+                "expires_at": ensure_kst(sess.expires_at).isoformat() if sess.expires_at else None,
+                "remaining_seconds": remaining,
+                "is_expiring_soon": is_soon,
+            })
+        else:
+            tables.append({
+                "table_id": table_id,
+                "session_id": None,
+                "nickname": None,
+                "status": "empty",
+                "started_at": None,
+                "expires_at": None,
+                "remaining_seconds": 0,
+                "is_expiring_soon": False,
+            })
+    return {"server_now": now.isoformat(), "tables": tables}
+
+
+@app.post("/admin/table-sessions/{session_id}/end")
+async def end_table_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """관리자가 세션을 종료/초기화한다. 테이블이 새 고객 세션을 시작할 수 있게 된다."""
+    sess = db.query(TableSession).filter(TableSession.id == session_id).first()
+    if sess is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if sess.status not in ("ended",):
+        sess.status = "ended"
+        sess.ended_at = get_kst_now()
+        sess.ended_by = "admin"
+        sess.end_reason = "admin_reset"
+        db.commit()
+    # in-memory 닉네임도 정리하여 테이블을 비운다
+    if sess.table_id in manager.table_nicknames:
+        del manager.table_nicknames[sess.table_id]
+    return {"success": True, "session_id": session_id, "table_id": sess.table_id}
+
+
+# ─────────────────────────────────────────────────────────────
+# 쿠폰 관리 (관리자)
+# ─────────────────────────────────────────────────────────────
+def expire_stale_coupons(db: Session):
+    """만료 시각이 지난 unused 쿠폰을 expired 로 전환한다."""
+    now = get_kst_now()
+    changed = 0
+    for c in db.query(Coupon).filter(Coupon.status == "unused", Coupon.expires_at.isnot(None)).all():
+        if ensure_kst(c.expires_at) is not None and now >= ensure_kst(c.expires_at):
+            c.status = "expired"
+            changed += 1
+    if changed:
+        db.commit()
+    return changed
+
+
+@app.get("/admin/coupons", response_class=HTMLResponse)
+async def admin_coupons(
+    request: Request,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """쿠폰 관리 페이지."""
+    expire_stale_coupons(db)
+    coupons = db.query(Coupon).order_by(Coupon.created_at.desc(), Coupon.id.desc()).all()
+    stats = {
+        "total": len(coupons),
+        "unused": sum(1 for c in coupons if c.status == "unused"),
+        "redeemed": sum(1 for c in coupons if c.status == "redeemed"),
+        "disabled": sum(1 for c in coupons if c.status == "disabled"),
+        "expired": sum(1 for c in coupons if c.status == "expired"),
+    }
+    return templates.TemplateResponse(
+        "admin_coupons.html",
+        {
+            "request": request,
+            "coupons": coupons,
+            "stats": stats,
+            "username": username,
+            "coupon_max_batch": COUPON_MAX_BATCH,
+        }
+    )
+
+
+@app.post("/admin/coupons/generate")
+async def generate_coupons(
+    request: Request,
+    count: int = Form(...),
+    discount_type: str = Form(...),
+    discount_value: int = Form(...),
+    expires_at: str = Form(None),
+    memo: str = Form(None),
+    reservation_name: str = Form(None),
+    reservation_contact: str = Form(None),
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """쿠폰을 단일 또는 일괄 생성한다."""
+    # 입력 검증
+    if count < 1 or count > COUPON_MAX_BATCH:
+        raise HTTPException(status_code=400, detail=f"count must be between 1 and {COUPON_MAX_BATCH}")
+    if discount_type not in ("fixed_amount", "percent"):
+        raise HTTPException(status_code=400, detail="invalid discount_type")
+    if discount_value <= 0:
+        raise HTTPException(status_code=400, detail="discount_value must be positive")
+    if discount_type == "percent" and discount_value > 100:
+        raise HTTPException(status_code=400, detail="percent discount cannot exceed 100")
+
+    expires_dt = None
+    if expires_at:
+        try:
+            # datetime-local 입력 (YYYY-MM-DDTHH:MM) 을 KST 로 해석
+            parsed = datetime.fromisoformat(expires_at)
+            expires_dt = KST.localize(parsed) if parsed.tzinfo is None else parsed.astimezone(KST)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="invalid expires_at format")
+
+    created = 0
+    existing_codes = {row[0] for row in db.query(Coupon.code).all()}
+    for _ in range(count):
+        # 충돌 없는 코드 생성
+        code = generate_coupon_code()
+        attempts = 0
+        while code in existing_codes and attempts < 10:
+            code = generate_coupon_code()
+            attempts += 1
+        existing_codes.add(code)
+        db.add(Coupon(
+            code=code,
+            discount_type=discount_type,
+            discount_value=discount_value,
+            status="unused",
+            expires_at=expires_dt,
+            memo=memo,
+            reservation_name=reservation_name,
+            reservation_contact=reservation_contact,
+        ))
+        created += 1
+    db.commit()
+    return RedirectResponse(url="/admin/coupons", status_code=303)
+
+
+@app.post("/admin/coupons/{coupon_id}/disable")
+async def disable_coupon(
+    coupon_id: int,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """미사용 쿠폰을 비활성화한다."""
+    coupon = db.query(Coupon).filter(Coupon.id == coupon_id).first()
+    if coupon is None:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    if coupon.status == "unused":
+        coupon.status = "disabled"
+        db.commit()
+    elif coupon.status == "redeemed":
+        raise HTTPException(status_code=400, detail="Cannot disable a redeemed coupon")
+    return RedirectResponse(url="/admin/coupons", status_code=303)
+
 
 @app.post("/admin/orders/confirm/{order_id}")
 async def confirm_order(
@@ -1706,7 +2289,11 @@ async def order_success_page(
     
     # 메뉴 데이터 가져오기
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
-    
+
+    coupon = None
+    if getattr(order, "coupon_id", None):
+        coupon = db.query(Coupon).filter(Coupon.id == order.coupon_id).first()
+
     return templates.TemplateResponse(
         "order_success.html",
         {
@@ -1714,7 +2301,8 @@ async def order_success_page(
             "order": order,
             "table_id": order.table_id,
             "menu_names": menu_names_by_id,
-            "is_gift_order": gift
+            "is_gift_order": gift,
+            "coupon": coupon
         }
     )
 

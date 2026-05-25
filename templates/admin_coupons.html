@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}쿠폰 관리{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 데스크톱용 사이드바 -->
+    <div class="col-md-3 d-none d-md-block">
+        <div class="admin-sidebar">
+            <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-person-circle fs-4 me-2"></i>
+                <span>{{ username }}</span>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link" href="/admin/orders"><i class="bi bi-list-ul me-2"></i>주문 관리</a></li>
+                <li class="nav-item"><a class="nav-link" href="/admin/tables"><i class="bi bi-table me-2"></i>테이블 현황</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/admin/coupons"><i class="bi bi-ticket-perforated me-2"></i>쿠폰 관리</a></li>
+                <li class="nav-item"><a class="nav-link" href="/admin/waiting"><i class="bi bi-clock me-2"></i>웨이팅 관리</a></li>
+                <li class="nav-item"><a class="nav-link" href="/admin/menu"><i class="bi bi-menu-button-wide me-2"></i>메뉴 관리</a></li>
+                <li class="nav-item"><a class="nav-link" href="/kitchen"><i class="bi bi-basket me-2"></i>주방 화면</a></li>
+                <li class="nav-item"><a class="nav-link" href="/admin/logout"><i class="bi bi-box-arrow-right me-2"></i>로그아웃</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-9 col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0">쿠폰 관리</h2>
+            <a href="/admin/tables" class="btn btn-outline-secondary btn-sm d-md-none">
+                <i class="bi bi-table me-1"></i>테이블 현황
+            </a>
+        </div>
+
+        <!-- 통계 -->
+        <div class="row text-center g-2 mb-3">
+            <div class="col"><div class="card"><div class="card-body p-2"><h5 class="mb-0">{{ stats.total }}</h5><small class="text-muted">전체</small></div></div></div>
+            <div class="col"><div class="card"><div class="card-body p-2"><h5 class="mb-0 text-primary">{{ stats.unused }}</h5><small class="text-muted">미사용</small></div></div></div>
+            <div class="col"><div class="card"><div class="card-body p-2"><h5 class="mb-0 text-success">{{ stats.redeemed }}</h5><small class="text-muted">사용됨</small></div></div></div>
+            <div class="col"><div class="card"><div class="card-body p-2"><h5 class="mb-0 text-secondary">{{ stats.disabled }}</h5><small class="text-muted">비활성</small></div></div></div>
+            <div class="col"><div class="card"><div class="card-body p-2"><h5 class="mb-0 text-danger">{{ stats.expired }}</h5><small class="text-muted">만료</small></div></div></div>
+        </div>
+
+        <!-- 쿠폰 생성 폼 -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-plus-circle me-2"></i>쿠폰 생성</div>
+            <div class="card-body">
+                <form method="post" action="/admin/coupons/generate" class="row g-3">
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small">개수</label>
+                        <input type="number" name="count" class="form-control" value="1" min="1" max="{{ coupon_max_batch }}" required>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">할인 종류</label>
+                        <select name="discount_type" class="form-select" id="discountType">
+                            <option value="fixed_amount" selected>정액 (원)</option>
+                            <option value="percent">정률 (%)</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small">할인 값</label>
+                        <input type="number" name="discount_value" class="form-control" value="5000" min="1" required>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">만료 시각 (선택)</label>
+                        <input type="datetime-local" name="expires_at" class="form-control">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-ticket me-1"></i>생성</button>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">메모 (선택)</label>
+                        <input type="text" name="memo" class="form-control" placeholder="예: 1차 예약분">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">예약자명 (선택)</label>
+                        <input type="text" name="reservation_name" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">예약 연락처 (선택)</label>
+                        <input type="text" name="reservation_contact" class="form-control">
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 쿠폰 목록 -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-list-ul me-2"></i>쿠폰 목록</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>코드</th>
+                                <th>할인</th>
+                                <th>상태</th>
+                                <th>만료</th>
+                                <th>사용 정보</th>
+                                <th>생성</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in coupons %}
+                            <tr>
+                                <td><code>{{ c.code }}</code>{% if c.memo %}<br><small class="text-muted">{{ c.memo }}</small>{% endif %}</td>
+                                <td>
+                                    {% if c.discount_type == 'percent' %}{{ c.discount_value }}%
+                                    {% else %}{{ c.discount_value|format_currency }}원{% endif %}
+                                </td>
+                                <td>
+                                    {% if c.status == 'unused' %}<span class="badge bg-primary">미사용</span>
+                                    {% elif c.status == 'redeemed' %}<span class="badge bg-success">사용됨</span>
+                                    {% elif c.status == 'disabled' %}<span class="badge bg-secondary">비활성</span>
+                                    {% elif c.status == 'expired' %}<span class="badge bg-danger">만료</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ c.expires_at|kst if c.expires_at else '없음' }}</small></td>
+                                <td>
+                                    {% if c.status == 'redeemed' %}
+                                    <small>
+                                        주문 #{{ c.redeemed_order_id }} / 테이블 {{ c.redeemed_table_id }}<br>
+                                        {% if c.redeemed_session_id %}세션 #{{ c.redeemed_session_id }} / {% endif %}{{ c.redeemed_at|kst }}
+                                    </small>
+                                    {% if c.reservation_name %}<br><small class="text-muted">예약: {{ c.reservation_name }}</small>{% endif %}
+                                    {% else %}
+                                    {% if c.reservation_name %}<small class="text-muted">예약: {{ c.reservation_name }}</small>{% else %}-{% endif %}
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ c.created_at|kst }}</small></td>
+                                <td>
+                                    {% if c.status == 'unused' %}
+                                    <form method="post" action="/admin/coupons/{{ c.id }}/disable" onsubmit="return confirm('이 쿠폰을 비활성화하시겠습니까?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">비활성화</button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="text-center text-muted py-4">생성된 쿠폰이 없습니다.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

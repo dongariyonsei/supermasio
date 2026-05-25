@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <title>{% block title %}슈퍼 마시오{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/mario.css?v=20260525-1">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="mario-body">
+    <header class="mario-header">
+        <a class="mh-logo" href="/" aria-label="홈">
+            <img src="/static/images/mario/brand_small.png" alt="슈퍼 마시오">
+        </a>
+        {% block header_title %}{% if header_title %}<h1 class="mh-title">{{ header_title }}</h1>{% else %}<span style="flex:1"></span>{% endif %}{% endblock %}
+        <details class="mh-nav">
+            <summary><span class="mh-menu" aria-label="메뉴"><i class="bi bi-list"></i></span></summary>
+            <div class="mh-nav-panel">
+                <a href="/"><i class="bi bi-house-door me-2"></i>홈으로</a>
+                <a href="/table-select"><i class="bi bi-grid-3x3-gap me-2"></i>테이블 선택</a>
+                <a href="/waiting"><i class="bi bi-clock me-2"></i>웨이팅 등록</a>
+                {% if table_id %}<a href="/chat/{{ table_id }}"><i class="bi bi-chat-dots me-2"></i>채팅</a>{% else %}<a href="/chat"><i class="bi bi-chat-dots me-2"></i>채팅</a>{% endif %}
+            </div>
+        </details>
+    </header>
+
+    <main class="mario-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
