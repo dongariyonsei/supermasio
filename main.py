@@ -86,34 +86,37 @@ def simplify_menu_name(name):
     if not name:
         return name
     
-    # 간결화 규칙들 (마리오 테마)
+    # 간결화 규칙들
     replacements = {
-        "버섯왕국 올스타 세트": "올스타 세트",
-        "마리오 파티 세트": "파티 세트",
-        "쿠파 최종보스 세트": "최종보스 세트",
-        "쿠파의 화염 삼겹살": "삼겹살",
-        "키노피오의 불타는 두부마을": "두부김치",
-        "피치 공주의 삼겹볶음밥": "삼겹볶음밥",
-        "마리오 레드 나초탑": "나초",
-        "슈퍼스타 주먹밥": "주먹밥",
-        "요시였던 것 (쥐포)": "쥐포",
-        "소스 추가": "소스",
-        "무지개로드": "음료",
-        "상쾌환 스틱": "숙취해소",
-        "1UP 생명수": "생수",
-        "상차림비(인당)": "상차림비",
+        "부엉의 에너지 드링크": "에너지 드링크",
+        "너굴 장터 콜라": "콜라",
+        "숲속 바람 사이다": "사이다",
+        "숲속 삼겹살": "삼겹살",
+        "너굴의 비밀 레시비 김볶밥": "김치볶음밥",
+        "셰프 프랭클린의 두부김치": "두부김치",
+        "둘기가 숨어먹는 콘치즈": "콘치즈",
+        "마을 장터 나초": "나초",
     }
     
     # 정확한 매칭 먼저 확인
     if name in replacements:
         return replacements[name]
     
-    # 패턴 기반 간결화 (fallback)
-    import re
+    # 패턴 기반 간결화
     simplified = name
     
     # "OOO의" 패턴 제거
+    import re
     simplified = re.sub(r'^.+의\s*', '', simplified)
+    
+    # "OOO 장터" 패턴에서 "장터" 제거
+    simplified = re.sub(r'\s*장터\s*', ' ', simplified)
+    
+    # "숲속" 제거
+    simplified = simplified.replace('숲속 ', '')
+    
+    # "마을" 제거
+    simplified = simplified.replace('마을 ', '')
     
     # 여러 공백을 하나로
     simplified = re.sub(r'\s+', ' ', simplified).strip()
@@ -247,20 +250,28 @@ def get_db():
 
 # 세트 메뉴 구성 정보 정의
 SET_MENU_COMPONENTS = {
-    "버섯왕국 올스타 세트": {
-        "쿠파의 화염 삼겹살": 1,
-        "슈퍼스타 주먹밥": 1,
+    "🌟 두근두근 2인 세트": {
+        "숲속 삼겹살": 2,
+        "셰프 프랭클린의 두부김치": 1,
+        "음료": 2,  # 실제로는 특정 음료를 선택하게 할 수 있음
+        "랜덤 뽑기권": 1
     },
-    "마리오 파티 세트": {
-        "쿠파의 화염 삼겹살": 2,
-        "키노피오의 불타는 두부마을": 1,
+    "🌟 단짝 4인 세트": {
+        "숲속 삼겹살": 3,
+        "셰프 프랭클린의 두부김치": 1,
+        "너굴의 비밀 레시비 김볶밥": 1,
+        "음료": 4,
+        "랜덤 뽑기권": 2
     },
-    "쿠파 최종보스 세트": {
-        "쿠파의 화염 삼겹살": 3,
-        "슈퍼스타 주먹밥": 1,
-        "키노피오의 불타는 두부마을": 1,
-        "마리오 레드 나초탑": 1,
-    },
+    "🌟 모여봐요 6인 세트": {
+        "숲속 삼겹살": 5,
+        "셰프 프랭클린의 두부김치": 1,
+        "너굴의 비밀 레시비 김볶밥": 1,
+        "둘기가 숨어먹는 콘치즈": 1,
+        "마을 장터 나초": 1,
+        "음료": 6,
+        "랜덤 뽑기권": 4
+    }
 }
 
 def decompose_set_menu(menu_items: Dict[str, int], db: Session) -> List[Dict]:
@@ -282,14 +293,34 @@ def decompose_set_menu(menu_items: Dict[str, int], db: Session) -> List[Dict]:
             # 세트 메뉴인 경우 구성 요소로 분해
             set_components = SET_MENU_COMPONENTS[menu_item.name_kr]
             for component_name, component_quantity in set_components.items():
-                component_id = menu_name_to_id.get(component_name)
-                if component_id:
+                if component_name == "음료":
+                    # 음료는 기본 음료로 설정 (추후 선택 가능하게 확장 가능)
+                    default_drink_id = menu_name_to_id.get("숲속 바람 사이다")
+                    if default_drink_id:
+                        decomposed_items.append({
+                            "menu_item_id": default_drink_id,
+                            "quantity": component_quantity * quantity,
+                            "is_set_component": True,
+                            "parent_set_name": menu_item.name_kr
+                        })
+                elif component_name == "랜덤 뽑기권":
+                    # 뽑기권은 별도 처리 (실제 메뉴가 아님)
                     decomposed_items.append({
-                        "menu_item_id": component_id,
+                        "menu_item_id": None,  # 특별 아이템
                         "quantity": component_quantity * quantity,
                         "is_set_component": True,
-                        "parent_set_name": menu_item.name_kr
+                        "parent_set_name": menu_item.name_kr,
+                        "notes": f"랜덤 뽑기권 {component_quantity * quantity}개"
                     })
+                else:
+                    component_id = menu_name_to_id.get(component_name)
+                    if component_id:
+                        decomposed_items.append({
+                            "menu_item_id": component_id,
+                            "quantity": component_quantity * quantity,
+                            "is_set_component": True,
+                            "parent_set_name": menu_item.name_kr
+                        })
         else:
             # 일반 메뉴인 경우 그대로 추가
             decomposed_items.append({
@@ -306,110 +337,94 @@ def init_menu_data(db: Session):
     """초기 메뉴 데이터 생성"""
     if db.query(MenuItem).first() is None:
         initial_menu = [
-            MenuItem(name_kr="상차림비(인당)", name_en="Table Charge", price=6000, category="table", image_filename="table.png"),
+            MenuItem(name_kr="상차림비(인당)", name_en="table", price=6000, category="table", image_filename="table.png"), # Typically no specific image
             MenuItem(
-                name_kr="버섯왕국 올스타 세트",
-                name_en="Meal for One",
-                price=21000,
+                name_kr="🌟 두근두근 2인 세트",
+                name_en="🌟 2-person set",
+                price=35000,
                 category="set_menu",
-                description="혼자서 클리어하는 세트\n삼겹살 + 주먹밥",
-                image_filename="1-person-set.png"
-            ),
-            MenuItem(
-                name_kr="마리오 파티 세트",
-                name_en="Meal for Two",
-                price=45000,
-                category="set_menu",
-                description="친구랑 먹으면 버프 2배\n삼겹살 2인분 + 두부김치",
+                description="둘이 앉아 조용히 속닥속닥 🌿\n(숲속 삼겹살 2인분 + 두부김치 + 음료 2잔 + 랜덤 뽑기권 1개)",
                 image_filename="2-person-set.png"
             ),
             MenuItem(
-                name_kr="쿠파 최종보스 세트",
-                name_en="Meal for Four",
-                price=75000,
+                name_kr="🌟 단짝 4인 세트",
+                name_en="🌟 4-person set",
+                price=59900,
                 category="set_menu",
-                description="넷이서 도전하는 보스전\n삼겹살 3인분 + 주먹밥 + 두부김치 + 나쵸",
+                description="친구들, 이웃들 다 모여~ 파티 파티 🎇\n(숲속 삼겹살 3인분 + 두부김치 + 김치볶음밥 + 음료 4잔 + 랜덤 뽑기권 2개)",
                 image_filename="4-person-set.png"
             ),
             MenuItem(
-                name_kr="쿠파의 화염 삼겹살",
-                name_en="Bowser's Pork Belly",
-                price=15900,
+                name_kr="🌟 모여봐요 6인 세트",
+                name_en="🌟 6-person set",
+                price=85900,
+                category="set_menu",
+                description="마을 축제처럼 신나게!\n(숲속 삼겹살 5인분 + 두부김치 + 김치볶음밥 + 콘치즈 + 마을 장터 나초 + 음료 6잔 + 랜덤 뽑기권 4개)",
+                image_filename="6-person-set.png"
+            ),
+            MenuItem(
+                name_kr="숲속 삼겹살",
+                name_en="samgyeopsal",
+                price=8900,
                 category="main_dishes",
-                description="쿠파의 화염 브레스를 담아낸 삼겹살",
+                description="바람 솔솔~ 숲속 바비큐 파티 시작!\n지글지글 구워서 따끈하게 한 점 🐷🔥",
                 image_filename="samgyeopsal.png"
             ),
             MenuItem(
-                name_kr="키노피오의 불타는 두부마을",
-                name_en="Toad's Tofu with Stir-fried Kimchi",
-                price=15900,
+                name_kr="너굴의 비밀 레시비 김볶밥",
+                name_en="kimchi_fried_rice",
+                price=11900,
                 category="main_dishes",
-                description="불타는 마을에서 완성된 화끈한 두부김치",
-                image_filename="tofu_kimchi.png"
-            ),
-            MenuItem(
-                name_kr="피치 공주의 삼겹볶음밥",
-                name_en="Peach's Pork Belly Fried Rice",
-                price=13900,
-                category="main_dishes",
-                description="쿠파한테 납치돼도 포기 못하는 삼겹볶음밥",
+                description="너굴 마트표 김치로 만든 마법의 볶음밥!\n밤하늘 아래서 먹으면 꿀맛 🍚🌟",
                 image_filename="kimchi_fried_rice.png"
             ),
             MenuItem(
-                name_kr="마리오 레드 나초탑",
-                name_en="Mario's Stacked Nachos",
-                price=7500,
+                name_kr="셰프 프랭클린의 두부김치",
+                name_en="tofu_kimchi",
+                price=13900,
                 category="main_dishes",
-                description="마리오도 등반 포기한 나초탑",
+                description="마을 최고 셰프의 두부 + 정성으로 구운 김치\n포근하고 든든한 마을 스타일 안주 💬🍽️",
+                image_filename="tofu_kimchi.png"
+            ),
+            MenuItem(
+                name_kr="둘기가 숨어먹는 콘치즈",
+                name_en="corn_cheese",
+                price=8900,
+                category="main_dishes",
+                description="비둘기 마스터의 최애 간식!\n달콤하고 고소해서 숟가락이 멈추지 않아요 🌽🧀✨",
+                image_filename="corn_cheese.png"
+            ),
+            MenuItem(
+                name_kr="마을 장터 나초",
+                name_en="nachos",
+                price=7900,
+                category="main_dishes",
+                description="마을 주민들이 손수 만든 바삭바삭 나초 🌿\n모닥불 옆에서 친구들과 나눠 먹는 소중한 맛 🎇",
                 image_filename="nachos.png"
             ),
             MenuItem(
-                name_kr="슈퍼스타 주먹밥",
-                name_en="Super Star Rice Ball",
-                price=7500,
-                category="side_dishes",
-                description="먹는 순간 오늘 체력 무적모드 되는 주먹밥",
-                image_filename="rice_ball.png"
-            ),
-            MenuItem(
-                name_kr="요시였던 것 (쥐포)",
-                name_en="Not-Yoshi Dried Filefish",
-                price=7500,
-                category="side_dishes",
-                description="요시 실종 후 발견된 수상한 쥐포",
-                image_filename="dried_filefish.png"
-            ),
-            MenuItem(
-                name_kr="소스 추가",
-                name_en="Extra Sauce",
-                price=1500,
-                category="side_dishes",
-                description="맛 능력치 강화 소스",
-                image_filename="sauce.png"
-            ),
-            MenuItem(
-                name_kr="무지개로드",
-                name_en="Beverages",
-                price=3000,
+                name_kr="숲속 바람 사이다",
+                name_en="forest_cider",
+                price=1900,
                 category="drinks",
-                description="무지개빛 텐션 충전! 한잔으로 차원 이동하는 음료",
-                image_filename="rainbow_road.png"
+                description="시원한 바람처럼 톡톡~ 상쾌하게 🌬️🥤\n(청량감 최고! 더위도 걱정 없어요 ❄️)",
+                image_filename="forest_cider.png"
             ),
             MenuItem(
-                name_kr="상쾌환 스틱",
-                name_en="Hangover Care Stick",
-                price=2000,
+                name_kr="너굴 장터 콜라",
+                name_en="raccoon_cola",
+                price=1900,
                 category="drinks",
-                description="플레이어 체력 회복템! 간편한 숙취해소스틱",
-                image_filename="hangover_stick.png"
+                description="마을 장터에서 제일 인기 많은 탄산음료!\n톡 쏘는 맛에 기분도 두 배 🎉🐾",
+                image_filename="raccoon_cola.png"
             ),
             MenuItem(
-                name_kr="1UP 생명수",
-                name_en="1UP Life Water",
-                price=2000,
+                name_kr="부엉의 에너지 드링크",
+                name_en="owl_energy_drink",
+                price=1900,
                 category="drinks",
-                description="생명 하나 더 얻는 신비로운 버섯왕국 생수",
-                image_filename="1up_water.png"
+                description="밤새 파티? 문제없어! 🦉🌙\n부엉이처럼 깨어있게 도와주는 마법의 한 캔 🪄🥤",
+                image_filename="owl_energy_drink.png"
             ),
         ]
         db.add_all(initial_menu)
@@ -438,19 +453,19 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
 
     # order.html 및 카테고리 기반 뷰를 위한 구조
     # 카테고리 순서 정의 (order.html 표시 순서)
-    category_order = ["table", "set_menu", "main_dishes", "side_dishes", "drinks"]
+    category_order = ["table", "set_menu", "main_dishes", "drinks", "side_dishes"]
     
     menu_items_grouped_by_category = {category: [] for category in category_order}
     for item in active_items:
         if item.category in menu_items_grouped_by_category:
             menu_items_grouped_by_category[item.category].append(item)
 
-    # 세트메뉴는 1인 -> 2인 -> 4인 순서로 정렬
+    # 세트메뉴는 2인 -> 4인 -> 6인 순서로 정렬
     if menu_items_grouped_by_category["set_menu"]:
         menu_items_grouped_by_category["set_menu"].sort(key=lambda x: (
-            0 if "올스타" in x.name_kr else
-            1 if "파티" in x.name_kr else
-            2 if "보스" in x.name_kr else
+            0 if "2인" in x.name_kr else
+            1 if "4인" in x.name_kr else
+            2 if "6인" in x.name_kr else
             3
         ))
 
@@ -460,8 +475,8 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
         "table": "상차림비",
         "set_menu": "세트 메뉴",
         "main_dishes": "메인 요리",
-        "side_dishes": "음료 및 기타 메뉴",
-        "drinks": "음료 및 기타 메뉴"
+        "drinks": "음료",
+        "side_dishes": "사이드 메뉴"
     }
     
     return menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names
@@ -486,16 +501,12 @@ def generate_qr_code(url: str, table_id: int) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "page_title": "슈퍼 마시오", "is_admin": False})
-
-@app.get("/waiting", response_class=HTMLResponse)
-async def waiting_form(request: Request):
-    return templates.TemplateResponse("wait_form.html", {"request": request, "page_title": "웨이팅 등록 중", "is_admin": False})
+    return templates.TemplateResponse("index.html", {"request": request})
 
 # 채팅 페이지(구현 예정정)
 @app.get("/chat", response_class=HTMLResponse)
 async def chat(request: Request):
-    return templates.TemplateResponse("chat.html", {"request": request, "page_title": "채팅", "is_admin": False})
+    return templates.TemplateResponse("chat.html", {"request": request})
 
 @app.post("/chat/send")
 async def send_chat_message(
@@ -653,9 +664,7 @@ async def chat_with_table(request: Request, table_id: int, db: Session = Depends
         "request": request,
         "table_id": table_id,
         "recent_messages": recent_messages,
-        "online_tables": online_tables,
-        "page_title": "채팅",
-        "is_admin": False
+        "online_tables": online_tables
     })
 
 @app.get("/generate-qr/{table_id}")
@@ -719,9 +728,7 @@ async def order_page(request: Request, table: int, db: Session = Depends(get_db)
             "table_id": table, 
             "menu_items_by_category": menu_items_grouped_by_category,
             "category_display_names": category_display_names,
-            "menu_item_details_for_js": menu_item_details_for_js,
-            "page_title": f"테이블 {table}",
-            "is_admin": False
+            "menu_item_details_for_js": menu_item_details_for_js
         }
     )
 
@@ -862,9 +869,7 @@ async def submit_order(
                 "request": request,
                 "order": order,
                 "table_id": table_id,
-                "menu_names": menu_names_by_id,
-                "page_title": "주문 완료",
-                "is_admin": False
+                "menu_names": menu_names_by_id
             }
         )
         
@@ -927,9 +932,7 @@ async def admin_orders(
             "completed_orders": completed_orders,
             "cancelled_orders": cancelled_orders,
             "username": username,
-            "menu_names": menu_names_by_id,
-            "page_title": "주문 관리",
-            "is_admin": True
+            "menu_names": menu_names_by_id
         }
     )
 
@@ -1054,9 +1057,7 @@ async def admin_tables(
             "request": request,
             "table_stats": table_stats,
             "summary_stats": summary_stats,
-            "username": username,
-            "page_title": "테이블 현황",
-            "is_admin": True
+            "username": username
         }
     )
 
@@ -1214,9 +1215,7 @@ async def kitchen_display(
             "completed_items": completed_items,
             "cancelled_items": cancelled_items,
             "username": username,
-            "menu_names": menu_names_by_id,
-            "page_title": "주방 화면",
-            "is_admin": True
+            "menu_names": menu_names_by_id
         }
     )
 
@@ -1329,9 +1328,7 @@ async def table_order_history(
             "current_status": status,
             "current_limit": limit,
             "username": username,
-            "menu_names": menu_names_by_id,
-            "page_title": f"테이블 {table_id} 주문 내역",
-            "is_admin": True
+            "menu_names": menu_names_by_id  # 메뉴 이름 정보 추가
         }
     )
 
@@ -1348,9 +1345,7 @@ async def menu_management(
         {
             "request": request,
             "menu_items": menu_items,
-            "username": username,
-            "page_title": "메뉴 관리",
-            "is_admin": True
+            "username": username
         }
     )
 
@@ -1719,9 +1714,7 @@ async def order_success_page(
             "order": order,
             "table_id": order.table_id,
             "menu_names": menu_names_by_id,
-            "is_gift_order": gift,
-            "page_title": "주문 완료",
-            "is_admin": False
+            "is_gift_order": gift
         }
     )
 
@@ -1945,9 +1938,7 @@ async def admin_waiting(
             "waiting_list": waiting_list,
             "today_stats": today_stats,
             "recent_completed": recent_completed,
-            "username": username,
-            "page_title": "웨이팅 관리",
-            "is_admin": True
+            "username": username
         }
     )
 

@@ -1,411 +1,200 @@
 {% extends "base.html" %}
 
-{% block title %}슈퍼 마시오{% endblock %}
+{% block title %}동술동술 - 홈{% endblock %}
 
 {% block content %}
-<div class="mario-home">
-    <!-- Main Content Card -->
-    <div class="mario-card home-card">
-        <!-- Brand Area -->
-        <div class="brand-area">
-            <div class="super-masio-text">SUPER MASIO</div>
-        </div>
-
-        <!-- Welcome Text -->
-        <p class="welcome-text">슈퍼 마시오에 오신 것을 환영합니다.</p>
-        <p class="guide-text">이용하실 방식을 선택해주세요.</p>
-
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-            <button class="mario-btn" id="btnTableSelect">
-                <span class="btn-main-text">테이블 선택하기</span>
-                <span class="btn-sub-text">착석 후 선택해주세요</span>
-            </button>
-            <a href="/waiting" class="mario-btn mario-btn-link">
-                <span class="btn-main-text">웨이팅 등록하기</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- Table Selection Grid (hidden by default) -->
-    <div class="mario-card table-grid-card" id="tableGridCard" style="display: none;">
-        <div class="table-grid-header">
-            <h2>테이블 선택</h2>
-            <button class="table-grid-close" id="btnCloseTableGrid">&times;</button>
-        </div>
-        <div class="table-grid">
-            {% for t in range(1, 51) %}
-            <div class="table-cell" data-table-id="{{ t }}">
-                <span class="table-number">{{ t }}</span>
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <h1 class="display-4 mb-4">동술동술</h1>
+        <p class="lead mb-5">테이블 번호를 선택하여 주문을 시작하세요.</p>
+        
+        <!-- 웨이팅 섹션 -->
+        <div class="card mb-5 waiting-section">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-clock me-2"></i>웨이팅 등록
+                </h5>
             </div>
-            {% endfor %}
+            <div class="card-body">
+                <p class="text-muted mb-3">자리가 없으신가요? 웨이팅을 등록하시면 자리가 나는 대로 연락드립니다.</p>
+                
+                <form id="waitingForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label for="waitingName" class="form-label">이름 *</label>
+                        <input type="text" class="form-control" id="waitingName" name="name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="waitingPhone" class="form-label">전화번호 *</label>
+                        <input type="tel" class="form-control" id="waitingPhone" name="phone" 
+                               placeholder="010-1234-5678" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="waitingPartySize" class="form-label">인원수 *</label>
+                        <select class="form-select" id="waitingPartySize" name="party_size" required>
+                            <option value="">선택하세요</option>
+                            {% for i in range(1, 16) %}
+                            <option value="{{ i }}">{{ i }}명</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="waitingNotes" class="form-label">특별 요청사항</label>
+                        <input type="text" class="form-control" id="waitingNotes" name="notes" 
+                               placeholder="예: 총 7인, 추가 의자 필요">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-plus-circle me-2"></i>웨이팅 등록
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 테이블 선택 섹션 -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-table me-2"></i>테이블 선택
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-2 row-cols-md-4 g-4">
+                    {% for table_id in range(1, 51) %}
+                    <div class="col">
+                        <a href="/order?table={{ table_id }}" class="text-decoration-none">
+                            <div class="card h-100 table-card animate-fade-in delay-{{ table_id }}">
+                                <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                                    <i class="bi bi-table fs-1 text-primary mb-2"></i>
+                                    <h5 class="card-title mb-0">테이블 {{ table_id }}</h5>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <a href="/generate-all-qr" class="btn btn-outline-primary">
+                <i class="bi bi-qr-code me-2"></i>QR 코드 전체 다운로드
+            </a>
         </div>
     </div>
 </div>
 
-<!-- Waiting Success Modal (shown when returning from /waiting with success) -->
-<div class="modal-overlay" id="waitingSuccessModal" style="display: none;">
-    <div class="mario-card modal-card">
-        <div class="modal-icon">✓</div>
-        <h3 class="modal-title">웨이팅 등록 완료!</h3>
-        <p class="modal-message">자리가 나는 대로 연락드리겠습니다.<br>잠시만 기다려 주세요.</p>
-        <button class="mario-btn modal-close-btn" id="btnModalClose">확인</button>
+<!-- 웨이팅 성공 모달 -->
+<div class="modal fade" id="waitingSuccessModal" tabindex="-1" aria-labelledby="waitingSuccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="waitingSuccessModalLabel">
+                    <i class="bi bi-check-circle me-2"></i>웨이팅 등록 완료
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h4 class="mt-3">웨이팅이 등록되었습니다!</h4>
+                    <p class="text-muted">자리가 나는 대로 연락드리겠습니다.<br>잠시만 기다려 주세요.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-bs-dismiss="modal">확인</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <style>
-/* ========================================
-   SUPER MASIO HOME PAGE STYLES
-   ======================================== */
-
-.mario-home {
-    min-height: calc(100vh - 120px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 16px 40px;
+.waiting-section {
+    border: 2px solid #ffc107;
 }
 
-/* Mario Card Base */
-.mario-card {
-    background: #ffffff;
-    border-radius: 37px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
-    width: 100%;
-    max-width: 420px;
+.table-card {
+    transition: transform 0.2s ease-in-out;
 }
 
-/* Home Card */
-.home-card {
-    padding: 40px 28px 36px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.table-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-/* Brand Area */
-.brand-area {
-    margin-bottom: 24px;
-}
-
-.super-masio-text {
-    font-family: 'Baloo 2', 'SeoulNamsan', sans-serif;
-    font-size: 2.4rem;
-    font-weight: 800;
-    color: #E52521;
-    letter-spacing: 3px;
-    text-shadow:
-        2px 2px 0 #FBD000,
-        4px 4px 0 rgba(0,0,0,0.08);
-    line-height: 1.2;
-    text-align: center;
-}
-
-/* Welcome & Guide Text */
-.welcome-text {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
-    color: #3a3a3a;
-    text-align: center;
-    margin: 0 0 6px;
-    line-height: 1.5;
-}
-
-.guide-text {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 400;
-    color: #3a3a3a;
-    text-align: center;
-    margin: 0 0 32px;
-    line-height: 1.5;
-}
-
-/* Action Buttons */
-.action-buttons {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.mario-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 20px 24px;
-    background: #E52521;
-    color: #ffffff;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-weight: 700;
-    font-size: 1.2rem;
-    box-shadow: 0 4px 0 #A11D1A, 0 6px 16px rgba(229, 37, 33, 0.25);
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-    text-decoration: none;
-    position: relative;
-    top: 0;
-}
-
-.mario-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #A11D1A, 0 10px 24px rgba(229, 37, 33, 0.35);
-    color: #ffffff;
-}
-
-.mario-btn:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px 0 #A11D1A, 0 2px 8px rgba(229, 37, 33, 0.2);
-    top: 2px;
-}
-
-.mario-btn-link {
-    text-decoration: none;
-}
-
-.btn-main-text {
-    font-size: 1.2rem;
-    font-weight: 700;
-}
-
-.btn-sub-text {
-    font-size: 0.8rem;
-    font-weight: 400;
-    opacity: 0.85;
-    margin-top: 2px;
-}
-
-/* Table Grid Card */
-.table-grid-card {
-    max-width: 420px;
-    margin-top: 20px;
-    padding: 24px 20px;
-}
-
-.table-grid-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.table-grid-header h2 {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #3a3a3a;
-    margin: 0;
-}
-
-.table-grid-close {
-    width: 36px;
-    height: 36px;
-    border: none;
-    background: #f0f0f0;
-    border-radius: 50%;
-    font-size: 1.3rem;
-    color: #3a3a3a;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s;
-}
-
-.table-grid-close:hover {
-    background: #E52521;
-    color: #ffffff;
-}
-
-/* Table Grid */
-.table-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-}
-
-.table-cell {
-    background: #ffffff;
-    border: 2px solid #e0e0e0;
-    border-radius: 14px;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.table-cell:hover {
-    border-color: #E52521;
-    background: #FFF0F0;
-    transform: translateY(-2px);
-    box-shadow: 0 3px 10px rgba(229, 37, 33, 0.18);
-}
-
-.table-cell:active {
-    transform: translateY(0);
-    box-shadow: none;
-}
-
-.table-number {
-    font-family: 'Baloo 2', 'SeoulNamsan', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #3a3a3a;
-}
-
-.table-cell:hover .table-number {
-    color: #E52521;
-}
-
-/* Waiting Success Modal */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-}
-
-.modal-card {
-    max-width: 340px;
-    padding: 36px 28px 28px;
-    text-align: center;
-}
-
-.modal-icon {
-    width: 64px;
-    height: 64px;
-    background: #4CAF50;
-    color: #ffffff;
-    border-radius: 50%;
-    font-size: 2rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-}
-
-.modal-title {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #3a3a3a;
-    margin: 0 0 8px;
-}
-
-.modal-message {
-    font-family: 'SeoulNamsan', 'Nanum Gothic', sans-serif;
-    font-size: 0.9rem;
-    color: #666666;
-    margin: 0 0 24px;
-    line-height: 1.5;
-}
-
-.modal-close-btn {
-    width: auto;
-    min-width: 120px;
-    padding: 14px 36px;
-}
-
-/* Slide-in animation for table grid */
-.table-grid-card {
-    animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+@media (max-width: 768px) {
+    .waiting-section .row {
+        margin: 0;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Responsive */
-@media (max-width: 380px) {
-    .super-masio-text {
-        font-size: 2rem;
-    }
-
-    .home-card {
-        padding: 28px 20px 28px;
-    }
-
-    .table-grid {
-        gap: 8px;
-    }
-
-    .table-number {
-        font-size: 0.95rem;
+    
+    .waiting-section .col-md-6 {
+        padding: 0.5rem;
     }
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Table Selection Toggle
-    const btnTableSelect = document.getElementById('btnTableSelect');
-    const tableGridCard = document.getElementById('tableGridCard');
-    const btnCloseTableGrid = document.getElementById('btnCloseTableGrid');
-
-    btnTableSelect.addEventListener('click', function() {
-        if (tableGridCard.style.display === 'none') {
-            tableGridCard.style.display = 'block';
-            tableGridCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-            tableGridCard.style.display = 'none';
+    const cards = document.querySelectorAll('.table-card');
+    cards.forEach(card => {
+        const tableId = parseInt(card.dataset.tableId);
+        card.style.animationDelay = `${tableId * 0.1}s`;
+    });
+    
+    // 웨이팅 폼 처리
+    const waitingForm = document.getElementById('waitingForm');
+    waitingForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(waitingForm);
+        const submitBtn = waitingForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // 버튼 비활성화 및 로딩 표시
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>등록 중...';
+        
+        try {
+            const response = await fetch('/waiting/add', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // 폼 초기화
+                waitingForm.reset();
+                
+                // 성공 모달 표시
+                const modal = new bootstrap.Modal(document.getElementById('waitingSuccessModal'));
+                modal.show();
+            } else {
+                alert(result.detail || '웨이팅 등록에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('웨이팅 등록 중 오류가 발생했습니다.');
+        } finally {
+            // 버튼 복원
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
     });
-
-    btnCloseTableGrid.addEventListener('click', function() {
-        tableGridCard.style.display = 'none';
-    });
-
-    // Table Cell Click → Navigate to Order Page
-    const tableCells = document.querySelectorAll('.table-cell');
-    tableCells.forEach(function(cell) {
-        cell.addEventListener('click', function() {
-            const tableId = this.dataset.tableId;
-            window.location.href = '/order?table=' + tableId;
-        });
-    });
-
-    // Waiting Success Modal (shown when redirected back with ?waiting=success)
-    const modal = document.getElementById('waitingSuccessModal');
-    const btnModalClose = document.getElementById('btnModalClose');
-    const urlParams = new URLSearchParams(window.location.search);
-
-    if (urlParams.get('waiting') === 'success') {
-        modal.style.display = 'flex';
-        // Clean up URL
-        window.history.replaceState({}, document.title, '/');
-    }
-
-    btnModalClose.addEventListener('click', function() {
-        modal.style.display = 'none';
-    });
-
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.style.display = 'none';
+    
+    // 전화번호 자동 포맷팅
+    const phoneInput = document.getElementById('waitingPhone');
+    phoneInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/[^0-9]/g, '');
+        
+        if (value.length >= 3 && value.length <= 7) {
+            value = value.replace(/(\d{3})(\d{1,4})/, '$1-$2');
+        } else if (value.length >= 8) {
+            value = value.replace(/(\d{3})(\d{4})(\d{1,4})/, '$1-$2-$3');
         }
+        
+        e.target.value = value;
     });
 });
 </script>
-{% endblock %}
+{% endblock %} 
