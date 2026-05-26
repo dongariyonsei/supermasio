@@ -333,6 +333,23 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
+
+def _is_valid_basic_auth(authorization: str | None) -> bool:
+    """Check HTTP Basic credentials from a raw Authorization header."""
+    if not authorization or not authorization.startswith("Basic "):
+        return False
+
+    try:
+        decoded = base64.b64decode(authorization.removeprefix("Basic ").strip()).decode("utf-8")
+        username, password = decoded.split(":", 1)
+    except Exception:
+        return False
+
+    return (
+        secrets.compare_digest(username, ADMIN_USERNAME)
+        and secrets.compare_digest(password, ADMIN_PASSWORD)
+    )
+
 # QR 코드 저장 디렉토리 생성 (persistent volume 심볼릭 링크 대상)
 QR_DIR = "static/qr"
 os.makedirs(QR_DIR, exist_ok=True)
@@ -958,13 +975,16 @@ def generate_qr_code(url: str, table_id: int) -> str:
 @app.get("/health")
 async def health_check():
     """Fly.io healthcheck — DB 연결 + 디스크 용량까지 검증"""
+    db = None
     try:
         db = SessionLocal()
         from sqlalchemy import text as _ht
         db.execute(_ht("SELECT 1"))
-        db.close()
     except Exception:
         return JSONResponse({"status": "unhealthy", "db": "error"}, status_code=503)
+    finally:
+        if db is not None:
+            db.close()
 
     db_path = os.path.join(_DATA_DIR, "orders.db")
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0
@@ -2163,9 +2183,21 @@ async def restore_database(
         engine.dispose()
         shutil.move(restore_path, db_path)
 
-        # 프로세스 종료 → Fly.io 자동 재시작 (새 DB 로드)
-        import os as _os
-        _os._exit(0)
+        def _cleanup_and_exit():
+            for tmp in [restore_path, pre_restore_backup]:
+                try:
+                    os.remove(tmp)
+                except Exception:
+                    pass
+            engine.dispose()
+            os._exit(0)
+
+        background = BackgroundTasks()
+        background.add_task(_cleanup_and_exit)
+        return JSONResponse(
+            {"message": "DB 복원 완료. 서버를 재시작합니다.", "status": "ok"},
+            background=background,
+        )
     except Exception as e:
         # 실패 시 원본 복구
         if os.path.exists(pre_restore_backup):
@@ -2505,12 +2537,11 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/{table_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
-    # ws/0(STAFF_CHANNEL)은 admin 페이지에서 사용 — origin 검증만 수행
-    origin = websocket.headers.get("origin", "")
+    # ws/0(STAFF_CHANNEL)은 관리자 인증이 필요한 내부 채널
     if table_id == 0:
-        # 외부 도메인에서의 접속 차단
-        if origin and not origin.endswith("supermasio.fly.dev") and "localhost" not in origin and "127.0.0.1" not in origin:
-            await websocket.close(code=1008, reason="External origin not allowed on staff channel")
+        authorization = websocket.headers.get("authorization")
+        if not _is_valid_basic_auth(authorization):
+            await websocket.close(code=1008, reason="Admin authorization required")
             return
     
     print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
