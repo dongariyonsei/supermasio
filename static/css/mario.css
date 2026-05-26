@@ -1143,6 +1143,184 @@ button, input, select, textarea { font: inherit; }
 }
 .chat-input-bar button:hover { background: var(--m-red-bright); }
 
+.m-chat-page {
+    display: grid;
+    gap: 14px;
+}
+.m-chat-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: var(--m-font);
+    font-size: clamp(1.45rem, calc(5.4 * var(--vw)), 1.85rem);
+    color: var(--m-ink);
+    text-shadow: 0 2px 4px rgba(0,0,0,.12);
+}
+.m-chat-card {
+    background: #fff;
+    border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    box-shadow: var(--m-shadow);
+    padding: 18px;
+}
+.welcome-message {
+    text-align: center;
+}
+.welcome-message h4 {
+    margin: 0 0 8px;
+    font-family: var(--m-font);
+    color: var(--m-red);
+    font-size: clamp(1.8rem, calc(6 * var(--vw)), 2.4rem);
+}
+.welcome-message p {
+    margin: 0 0 18px;
+    color: var(--m-ink);
+    font-weight: 700;
+    line-height: 1.45;
+}
+.m-chat-join {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+.m-chat-join .form-control,
+.chat-input-container .form-control,
+.chat-input-container .input-group-text {
+    border: 2px solid var(--m-red-accent);
+    background: #fff4f4;
+}
+.m-chat-join .form-control,
+.chat-input-container .form-control {
+    border-radius: 14px;
+    min-height: 44px;
+    font-weight: 700;
+}
+.m-chat-join .btn,
+.chat-input-container .btn,
+.online-users .btn {
+    border-radius: 12px;
+    font-family: var(--m-font);
+    font-weight: 700;
+}
+.btn-primary {
+    background: linear-gradient(180deg, var(--m-red-bright), var(--m-red));
+    border-color: var(--m-red);
+}
+.online-users {
+    font-weight: 700;
+}
+.m-online-head {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.m-online-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+#online-count::before {
+    content: "접속 ";
+    color: var(--m-muted);
+    font-weight: 700;
+}
+#online-users-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+.online-user {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #e7e7e7;
+    border-radius: 999px;
+    padding: 7px 10px;
+    background: #fafafa;
+    color: var(--m-muted);
+    font-size: .9rem;
+}
+.online-user.clickable {
+    color: var(--m-red);
+    border-color: var(--m-red-accent);
+    background: #fff4f4;
+    cursor: pointer;
+}
+.chat-container.m-chat-card {
+    padding: 0;
+    overflow: hidden;
+    display: block;
+    height: auto;
+}
+.chat-status {
+    margin: 14px 14px 0;
+    border-radius: 12px;
+    padding: 8px 10px;
+    color: #fff;
+    font-weight: 700;
+}
+.chat-messages {
+    height: min(52dvh, 430px);
+    min-height: 300px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: linear-gradient(180deg, #fff, #fff8f8);
+}
+.chat-messages .loading {
+    margin: auto;
+    color: var(--m-muted);
+    text-align: center;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.chat-message {
+    max-width: 82%;
+    padding: 10px 12px;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    word-break: break-word;
+}
+.chat-message.my-message {
+    align-self: flex-end;
+    background: linear-gradient(180deg, var(--m-red-bright), var(--m-red));
+    color: #fff;
+    border-bottom-right-radius: 5px;
+}
+.chat-message.other-message,
+.chat-message.system-message {
+    align-self: flex-start;
+    background: #fff;
+    color: var(--m-ink);
+    border-bottom-left-radius: 5px;
+}
+.chat-message.private-message {
+    border: 2px solid #f8ab00;
+}
+.message-header {
+    font-size: .72rem;
+    opacity: .78;
+    margin-bottom: 3px;
+    font-weight: 700;
+}
+.message-content {
+    font-size: .98rem;
+    line-height: 1.4;
+}
+.chat-input-container {
+    padding: 12px;
+    border-top: 1px solid #f1d6d6;
+    background: #fff;
+}
+.m-chat-current {
+    display: inline-flex;
+    align-items: center;
+    min-height: 31px;
+    font-weight: 700;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    RESPONSIVE BREAKPOINTS
    ══════════════════════════════════════════════════════════════════ */
@@ -1183,14 +1361,16 @@ button, input, select, textarea { font: inherit; }
     height: 70%;
 }
 .m-beverage-card .m-menu-card-img-figma {
-    width: auto;
-    height: 100%;
-    top: 0;
-    bottom: 0;
-    left: 0;
+    /* Group 8876 is 2942.57×3680px in Figma, offset (-1294, -1502) within the card.
+       All values expressed as calc(figma_px / 1179 * 100 * var(--vw)) for responsiveness. */
+    width: calc(249.6 * var(--vw));
+    height: auto;
+    max-width: none;
+    left: calc(-109.75 * var(--vw));
+    top: calc(-127.4 * var(--vw));
+    bottom: auto;
     transform: none;
-    object-fit: contain;
-    object-position: left center;
+    object-fit: fill;
 }
 .m-beverage-content {
     padding-top: clamp(44px, calc(11 * var(--vw)), 130px);
@@ -1365,16 +1545,18 @@ button, input, select, textarea { font: inherit; }
    COUPON INPUT CARD
    ══════════════════════════════════════════════════════════════════ */
 .m-coupon-card {
-    background: #fff;
-    border-radius: clamp(14px, calc(3.5 * var(--vw)), 24px);
+    background: var(--m-white);
+    border-radius: var(--m-radius);
+    box-shadow: var(--m-shadow);
     padding: clamp(14px, calc(3.6 * var(--vw)), 28px);
     margin-bottom: clamp(10px, calc(2.5 * var(--vw)), 20px);
 }
-.m-coupon-inner { display: flex; flex-direction: column; gap: 8px; }
+.m-coupon-inner { display: flex; flex-direction: column; gap: clamp(8px, calc(2 * var(--vw)), 14px); }
 .m-coupon-label {
-    font-size: clamp(0.82rem, calc(3 * var(--vw)), 0.95rem);
+    font-family: var(--m-font);
+    font-size: clamp(0.9rem, calc(3.2 * var(--vw)), 1.05rem);
     font-weight: 700;
-    color: #555;
+    color: var(--m-red);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1382,15 +1564,22 @@ button, input, select, textarea { font: inherit; }
 .m-coupon-row { display: flex; gap: 8px; }
 .m-coupon-input {
     flex: 1;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: clamp(0.95rem, calc(3.3 * var(--vw)), 1.05rem);
-    font-family: 'Courier New', monospace;
-    letter-spacing: 0.05em;
-    color: #222;
+    border: 2px solid var(--m-red-accent);
+    border-radius: clamp(16px, calc(3.1 * var(--vw)), 37px);
+    background: #fff5f5;
+    box-shadow: var(--m-shadow);
+    padding: clamp(10px, calc(2.2 * var(--vw)), 16px) clamp(14px, calc(3 * var(--vw)), 24px);
+    font-size: clamp(0.95rem, calc(3.3 * var(--vw)), 1.1rem);
+    font-family: var(--m-font);
+    letter-spacing: 0.08em;
+    color: var(--m-ink);
+    text-align: center;
     outline: none;
-    transition: border-color 0.15s;
+    transition: background 0.15s, box-shadow 0.15s;
     text-transform: uppercase;
 }
-.m-coupon-input:focus { border-color: var(--m-red, #e63946); }
+.m-coupon-input::placeholder { color: var(--m-placeholder); }
+.m-coupon-input:focus {
+    background: var(--m-white);
+    box-shadow: 0 0 0 3px rgba(214, 10, 10, 0.10);
+}

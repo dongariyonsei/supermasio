@@ -2,107 +2,30 @@
 
 {% block title %}테이블 현황{% endblock %}
 
-{% block content %}
-<!-- 모바일용 상단 네비게이션 -->
-<div class="d-md-none mb-3">
-    <div class="card">
-        <div class="card-body p-2">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-person-circle fs-5 me-2"></i>
-                    <span class="fw-bold">{{ username }}</span>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
-                    <i class="bi bi-list"></i>
-                </button>
-            </div>
-            <div class="collapse" id="mobileNav">
-                <div class="d-grid gap-1">
-                    <a href="/admin/orders" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-list-ul me-1"></i>주문 관리
-                    </a>
-                    <a href="/admin/tables" class="btn btn-primary btn-sm">
-                        <i class="bi bi-table me-1"></i>테이블 현황
-                    </a>
-                    <a href="/admin/waiting" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-clock me-1"></i>웨이팅 관리
-                    </a>
-                    <a href="/admin/coupons" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-ticket-perforated me-1"></i>쿠폰 관리
-                    </a>
-                    <a href="/admin/menu" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-menu-button-wide me-1"></i>메뉴 관리
-                    </a>
-                    <a href="/kitchen" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-basket me-1"></i>주방 화면
-                    </a>
-                    <a href="/admin/logout" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-box-arrow-right me-1"></i>로그아웃
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% block extra_css %}
+{{ super() }}
+<style>
+/* table card left-border status indicator */
+.table-card .card { border-left: 4px solid #e0e0e0; }
+.table-card .card.has-pending  { border-left-color: #ffc107; }
+.table-card .card.has-cooking  { border-left-color: var(--m-red, #e63946); }
+.table-card .card.is-online    { border-left-color: #22c55e; }
+.table-card .card.border-success { border-left-color: #22c55e; }
 
-<div class="row">
-    <!-- 데스크톱용 사이드바 -->
-    <div class="col-md-3 d-none d-md-block">
-        <div class="admin-sidebar">
-            <div class="d-flex align-items-center mb-4">
-                <i class="bi bi-person-circle fs-4 me-2"></i>
-                <span>{{ username }}</span>
-            </div>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/orders">
-                        <i class="bi bi-list-ul me-2"></i>주문 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="/admin/tables">
-                        <i class="bi bi-table me-2"></i>테이블 현황
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/waiting">
-                        <i class="bi bi-clock me-2"></i>웨이팅 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/coupons">
-                        <i class="bi bi-ticket-perforated me-2"></i>쿠폰 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/menu">
-                        <i class="bi bi-menu-button-wide me-2"></i>메뉴 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/kitchen">
-                        <i class="bi bi-basket me-2"></i>주방 화면
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/logout">
-                        <i class="bi bi-box-arrow-right me-2"></i>로그아웃
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
+.tbl-stat { display:flex; flex-direction:column; align-items:center; }
+.tbl-stat .badge { font-size:0.75rem; min-width:26px; }
+.tbl-stat small { font-size:0.68rem; margin-top:2px; color:#888; }
+</style>
+{% endblock %}
 
-    <div class="col-md-9 col-12">
-        <!-- 페이지 헤더 - 모바일 최적화 -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
-            <h2 class="mb-2 mb-md-0">테이블 현황</h2>
-            <div class="d-flex flex-wrap gap-1">
-                <a href="/admin/orders" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">주문 관리</span>
-                </a>
-                <a href="/kitchen" class="btn btn-outline-success btn-sm">
-                    <i class="bi bi-basket me-1"></i><span class="d-none d-sm-inline">주방 화면</span>
+{% block admin_content %}
+        <!-- 페이지 헤더 -->
+        <div class="adm-page-hdr">
+            <h2>테이블 현황</h2>
+            <div class="d-flex gap-2">
+                <a href="/generate-all-qr" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-qr-code me-1"></i><span class="d-none d-sm-inline">QR 전체 다운로드</span>
+                    <span class="d-sm-none">QR</span>
                 </a>
                 <a href="/" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-house-door me-1"></i><span class="d-none d-sm-inline">홈으로</span>
@@ -160,7 +83,7 @@
                  data-total-amount="{{ table['total_amount'] }}"
                  data-latest-order="{{ table['latest_order_time'].timestamp() if table['latest_order_time'] else 0 }}"
                  data-total-orders="{{ table['total_orders'] }}">
-                <div class="card h-100 {{ 'border-success' if table['is_online'] else '' }}">
+                <div class="card h-100 {{ 'has-cooking' if table['cooking_count'] > 0 else ('has-pending' if table['pending_count'] > 0 else ('is-online' if table['is_online'] else '')) }}">
                     <!-- 카드 헤더 - 모바일 최적화 -->
                     <div class="card-header p-2 d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
@@ -264,6 +187,10 @@
                             <a href="/admin/table/{{ table['table_id'] }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">주문 내역</span>
                             </a>
+                            <a href="/generate-qr/{{ table['table_id'] }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-qr-code me-1"></i><span class="d-none d-sm-inline">QR 다운로드</span>
+                                <span class="d-sm-none">QR</span>
+                            </a>
                             {% if table['pending_count'] > 0 or table['cooking_count'] > 0 %}
                             <div class="btn-group">
                                 {% if table['pending_count'] > 0 %}
@@ -277,6 +204,14 @@
                                 </a>
                                 {% endif %}
                             </div>
+                            {% endif %}
+                            {% if table['session_status'] in ('active', 'expiring_soon') and table['session_id'] %}
+                            <button type="button" class="btn btn-sm btn-outline-danger js-end-session"
+                                    data-session-id="{{ table['session_id'] }}"
+                                    data-table-id="{{ table['table_id'] }}"
+                                    data-pending="{{ table['pending_count'] }}">
+                                <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">테이블 비우기</span>
+                            </button>
                             {% endif %}
                         </div>
                     </div>
@@ -360,8 +295,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
 <style>
 /* 모바일 최적화 스타일 */
@@ -537,6 +470,27 @@ document.addEventListener('DOMContentLoaded', function() {
         wsRefreshing = false;
         if (wsPending) { wsPending = false; refreshTableBoard(); }
     }
+
+    // 테이블 비우기 — 활성 세션을 종료해 새 고객이 등록할 수 있게 한다 (이벤트 위임: 그리드 재렌더 후에도 유지)
+    document.addEventListener('click', async function(e) {
+        const btn = e.target.closest('.js-end-session');
+        if (!btn) return;
+        const sessionId = btn.dataset.sessionId;
+        const tableId = btn.dataset.tableId;
+        const pending = parseInt(btn.dataset.pending) || 0;
+        let msg = `테이블 ${tableId}번 세션을 종료하고 비울까요?\n새 고객이 등록할 수 있게 됩니다.`;
+        if (pending > 0) msg += `\n\n⚠️ 결제 대기 중인 주문이 ${pending}건 있습니다.`;
+        if (!confirm(msg)) return;
+        btn.disabled = true;
+        try {
+            const res = await fetch(`/admin/table-sessions/${sessionId}/end`, { method: 'POST' });
+            if (!res.ok) throw new Error('end failed');
+            refreshTableBoard();
+        } catch (err) {
+            alert('세션 종료에 실패했습니다. 다시 시도해주세요.');
+            btn.disabled = false;
+        }
+    });
 
     if (typeof window.tablesWs === 'undefined') {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

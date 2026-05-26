@@ -2,101 +2,41 @@
 
 {% block title %}관리자 - 메뉴 관리{% endblock %}
 
-{% block content %}
-<!-- 모바일용 상단 네비게이션 -->
-<div class="d-md-none mb-3">
-    <div class="card">
-        <div class="card-body p-2">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-person-circle fs-5 me-2"></i>
-                    <span class="fw-bold">{{ username }}</span>
-                </div>
-                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mobileNav">
-                    <i class="bi bi-list"></i>
-                </button>
-            </div>
-            <div class="collapse" id="mobileNav">
-                <div class="d-grid gap-1">
-                    <a href="/admin/orders" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-list-ul me-1"></i>주문 관리
-                    </a>
-                    <a href="/admin/tables" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-table me-1"></i>테이블 현황
-                    </a>
-                    <a href="/admin/waiting" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-clock me-1"></i>웨이팅 관리
-                    </a>
-                    <a href="/admin/coupons" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-ticket-perforated me-1"></i>쿠폰 관리
-                    </a>
-                    <a href="/admin/menu" class="btn btn-primary btn-sm">
-                        <i class="bi bi-menu-button-wide me-1"></i>메뉴 관리
-                    </a>
-                    <a href="/kitchen" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-basket me-1"></i>주방 화면
-                    </a>
-                    <a href="/admin/logout" class="btn btn-outline-danger btn-sm">
-                        <i class="bi bi-box-arrow-right me-1"></i>로그아웃
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- 데스크톱용 사이드바 -->
-    <div class="col-md-3 d-none d-md-block">
-        <div class="admin-sidebar">
-            <div class="d-flex align-items-center mb-4">
-                <i class="bi bi-person-circle fs-4 me-2"></i>
-                <span>{{ username }}</span>
-            </div>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/orders">
-                        <i class="bi bi-list-ul me-2"></i>주문 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/tables">
-                        <i class="bi bi-table me-2"></i>테이블 현황
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/waiting">
-                        <i class="bi bi-clock me-2"></i>웨이팅 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/coupons">
-                        <i class="bi bi-ticket-perforated me-2"></i>쿠폰 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" href="/admin/menu">
-                        <i class="bi bi-menu-button-wide me-2"></i>메뉴 관리
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/kitchen">
-                        <i class="bi bi-basket me-2"></i>주방 화면
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/admin/logout">
-                        <i class="bi bi-box-arrow-right me-2"></i>로그아웃
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
-
-    <div class="col-md-9 col-12">
-        <!-- 페이지 헤더 - 모바일 최적화 -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
-            <h2 class="mb-2 mb-md-0">메뉴 관리</h2>
+{% block admin_content %}
+{% set admin_figma_image_by_item = {
+    'Meal for Three (3 pax)':'figma_mario_allstar_set.png',
+    'Meal for Four (4 pax)':'figma_mario_party_set.png',
+    'Meal for Five (5 pax)':'figma_bowser_final_set.png',
+    "Bowser’s Pork Belly":'figma_bowser_pork_belly.png',
+    "Toad’s Tofu with Stir-fried Kimchi":'figma_toad_tofu_kimchi.png',
+    "Peach’s Pork Belly Fried Rice":'figma_peach_fried_rice.png',
+    "Mario’s Stacked Nachos":'figma_mario_red_nachos.png',
+    'Not-Yoshi Dried Filefish':'figma_not_yoshi_filefish.png',
+    'Extra Sauce':'figma_extra_sauce.png',
+    'Hangover Care Stick':'figma_hangover_stick.png',
+    'Water':'figma_oneup_water.png',
+    'Lemon':'figma_rainbow_road.png',
+    'Apple':'figma_rainbow_road.png',
+    'Orange':'figma_rainbow_road.png',
+    'Energy Drink':'figma_rainbow_road.png',
+    'Sparkling Water':'figma_rainbow_road.png',
+    'Pepsi':'figma_rainbow_road.png',
+    'Sprite':'figma_rainbow_road.png',
+    'Takeout Bonus Beer':'../main_banner.png',
+    'Takeout Bonus Soju':'../main_banner.png',
+    'table':'../table_item.png'
+} %}
+{% macro admin_menu_image_src(item) -%}
+{%- if admin_figma_image_by_item.get(item.name_en) -%}
+/static/images/mario/menu/{{ admin_figma_image_by_item.get(item.name_en) }}
+{%- elif item.image_filename -%}
+/static/uploads/{{ item.image_filename }}
+{%- else -%}
+{%- endif -%}
+{%- endmacro %}
+        <!-- 페이지 헤더 -->
+        <div class="adm-page-hdr">
+            <h2>메뉴 관리</h2>
             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMenuModal">
                 <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">새 메뉴 추가</span>
             </button>
@@ -120,8 +60,9 @@
                             {% for item in menu_items %}
                             <tr class="animate-fade-in">
                                 <td class="d-none d-md-table-cell">
-                                    {% if item.image_filename %}
-                                    <img src="/static/uploads/{{ item.image_filename }}" 
+                                    {% set image_src = admin_menu_image_src(item)|trim %}
+                                    {% if image_src %}
+                                    <img src="{{ image_src }}" 
                                          alt="{{ item.name_kr }}" 
                                          class="img-thumbnail" 
                                          style="width: 50px; height: 50px; object-fit: cover;">
@@ -136,8 +77,9 @@
                                     <div class="d-flex align-items-center">
                                         <!-- 모바일용 작은 이미지 -->
                                         <div class="d-block d-md-none me-2">
-                                            {% if item.image_filename %}
-                                            <img src="/static/uploads/{{ item.image_filename }}" 
+                                            {% set image_src = admin_menu_image_src(item)|trim %}
+                                            {% if image_src %}
+                                            <img src="{{ image_src }}" 
                                                  alt="{{ item.name_kr }}" 
                                                  class="img-thumbnail" 
                                                  style="width: 40px; height: 40px; object-fit: cover;">
@@ -228,8 +170,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
 <!-- 새 메뉴 추가 모달 -->
 <div class="modal fade" id="addMenuModal" tabindex="-1">
@@ -317,9 +257,10 @@
                     <div class="mb-3">
                         <label class="form-label">이미지</label>
                         <input type="file" name="image" class="form-control" accept="image/*">
-                        {% if item.image_filename %}
+                        {% set image_src = admin_menu_image_src(item)|trim %}
+                        {% if image_src %}
                         <div class="mt-2">
-                            <img src="/static/uploads/{{ item.image_filename }}" 
+                            <img src="{{ image_src }}" 
                                  alt="{{ item.name_kr }}" 
                                  class="img-thumbnail" 
                                  style="max-width: 100px;">

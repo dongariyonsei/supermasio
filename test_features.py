@@ -9,8 +9,11 @@ import sys
 import threading
 import datetime as dt
 
-DB = "orders.db"
-BACKUP = "orders.db.testbak"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.getenv("DATA_DIR", os.path.join(BASE_DIR, "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+DB = os.path.join(DATA_DIR, "orders.db")
+BACKUP = DB + ".testbak"
 
 # 기존 DB 보호: 옆으로 치우고 신규 DB 로 시작
 if os.path.exists(DB):
@@ -53,7 +56,7 @@ try:
     check("1. /order?table=1 shows nickname form initially",
           r.status_code == 200 and 'name="nickname"' in r.text and "이용 시작하기" in r.text)
 
-    # ── 2. 닉네임 제출 → active 60분 세션 1개 생성 ──
+    # ── 2. 닉네임 제출 → active 90분 세션 1개 생성 ──
     r = client.post("/table-session/start", data={"table_id": 1, "nickname": "test1"}, follow_redirects=False)
     db = main.SessionLocal()
     sessions = db.query(main.TableSession).filter(main.TableSession.table_id == 1).all()
@@ -61,8 +64,8 @@ try:
     dur_ok = False
     if s:
         delta = (main.ensure_kst(s.expires_at) - main.ensure_kst(s.started_at)).total_seconds()
-        dur_ok = abs(delta - 60 * 60) < 5
-    check("2. nickname submit creates exactly one active 60-min session",
+        dur_ok = abs(delta - 90 * 60) < 5
+    check("2. nickname submit creates exactly one active 90-min session",
           r.status_code == 303 and len([x for x in sessions if x.status == "active"]) == 1 and dur_ok,
           f"sessions={len(sessions)} dur_ok={dur_ok}")
     db.close()

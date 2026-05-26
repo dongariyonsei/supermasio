@@ -181,16 +181,19 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
-# QR 코드 저장 디렉토리 생성
+# QR 코드 저장 디렉토리 생성 (persistent volume 심볼릭 링크 대상)
 QR_DIR = "static/qr"
 os.makedirs(QR_DIR, exist_ok=True)
 
-# 업로드 디렉토리 생성
+# 업로드 디렉토리 생성 (persistent volume 심볼릭 링크 대상)
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 데이터베이스 설정
-SQLALCHEMY_DATABASE_URL = "sqlite:///./orders.db"
+# 데이터베이스 설정 (배포에서는 DATA_DIR persistent volume, 로컬에서는 ./data)
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_DATA_DIR = os.getenv("DATA_DIR", os.path.join(_BASE_DIR, "data"))
+os.makedirs(_DATA_DIR, exist_ok=True)
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{_DATA_DIR}/orders.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -1789,68 +1792,6 @@ async def cancel_order(
     
     return RedirectResponse(url="/admin/orders", status_code=303)
 
-@app.post("/kitchen/cancel-item/{item_id}")
-async def cancel_order_item(
-    item_id: int,
-    reason: str = Form(None),
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_admin)
-):
-    """개별 주문 아이템 취소"""
-    order_item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
-    if not order_item:
-        raise HTTPException(status_code=404, detail="Order item not found")
-    
-    if order_item.cooking_status == "completed":
-        raise HTTPException(status_code=400, detail="Cannot cancel completed item")
-    
-    if order_item.cooking_status == "cancelled":
-        raise HTTPException(status_code=400, detail="Item is already cancelled")
-    
-    # 아이템 취소 처리
-    order_item.cooking_status = "cancelled"
-    order_item.cancelled_at = get_kst_now()
-    order_item.cancellation_reason = reason or "개별 아이템 취소"
-    
-    db.commit()
-    
-    # WebSocket으로 아이템 취소 알림 (관리자/주방 보드)
-    try:
-        await manager.broadcast_to_staff(json.dumps({
-            "type": "item_cancelled",
-            "item_id": item_id,
-            "order_id": order_item.order_id,
-            "table_id": order_item.order.table_id,
-            "menu_name": order_item.menu_item.name_kr if order_item.menu_item else "특별 아이템",
-            "reason": order_item.cancellation_reason
-        }))
-    except Exception as e:
-        print(f"WebSocket notification error: {e}")
-    
-    return RedirectResponse(url="/admin/orders", status_code=303)
-
-
-@app.post("/kitchen/update-item-status/{item_id}")
-async def update_item_cooking_status(
-    item_id: int,
-    status: str = Form(...),
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_admin)
-):
-    """개별 메뉴 아이템의 조리 상태 업데이트"""
-    order_item = db.query(OrderItem).filter(OrderItem.id == item_id).first()
-    if not order_item:
-        raise HTTPException(status_code=404, detail="Order item not found")
-    
-    order_item.cooking_status = status
-    if status == "cooking" and not order_item.started_at:
-        order_item.started_at = get_kst_now()
-    elif status == "completed":
-        order_item.completed_at = get_kst_now()
-    
-    db.commit()
-    return RedirectResponse(url="/admin/orders", status_code=303)
-
 @app.post("/kitchen/update-status/{order_id}")
 async def update_cooking_status(
     order_id: int,
@@ -2153,24 +2094,6 @@ async def delete_menu_item(
     db.commit()
     return RedirectResponse(url="/admin/menu", status_code=303)
 
-@app.get("/ws-test")
-async def websocket_test():
-    """WebSocket 지원 테스트 엔드포인트"""
-    try:
-        import websockets
-        websockets_available = True
-        websockets_version = getattr(websockets, '__version__', 'unknown')
-    except ImportError:
-        websockets_available = False
-        websockets_version = 'not installed'
-    
-    return {
-        "websocket_support": websockets_available,
-        "websockets_version": websockets_version,
-        "message": "WebSocket endpoints available at /ws and /ws/{table_id}",
-        "online_tables": manager.get_online_tables()
-    }
-
 # WebSocket 연결 관리를 위한 클래스
 class ConnectionManager:
     def __init__(self):
@@ -2277,27 +2200,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    # 기본 테이블 ID (관리자용)으로 0을 사용
-    print(f"WebSocket connection attempt from {websocket.client} to /ws")
-    try:
-        await manager.connect(websocket, 0)
-        print(f"WebSocket connected successfully to /ws")
-        while True:
-            data = await websocket.receive_text()
-            print(f"WebSocket /ws received: {data}")
-            await manager.broadcast_to_all(f"Message text was: {data}")
-    except WebSocketDisconnect:
-        print(f"WebSocket disconnected from /ws")
-        manager.disconnect(websocket, 0)
-    except Exception as e:
-        print(f"WebSocket error on /ws: {str(e)}")
-        try:
-            manager.disconnect(websocket, 0)
-        except:
-            pass
-
 @app.websocket("/ws/{table_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
     print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
@@ -2337,35 +2239,6 @@ async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
             manager.disconnect(websocket, table_id)
         except:
             pass
-
-@app.post("/update_payment_status")
-async def update_payment_status(
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    try:
-        data = await request.json()
-        table_id = data.get('table_id')
-        status = data.get('status')
-        
-        if not table_id or not status:
-            return {"success": False, "error": "Missing required fields"}
-            
-        # Get the latest order for this table
-        order = db.query(Order).filter(
-            Order.table_id == table_id
-        ).order_by(Order.created_at.desc()).first()
-        
-        if not order:
-            return {"success": False, "error": "Order not found"}
-            
-        order.payment_status = status
-        db.commit()
-        
-        return {"success": True}
-    except Exception as e:
-        db.rollback()
-        return {"success": False, "error": str(e)}
 
 @app.get("/api/menu-data")
 async def get_menu_data_api(db: Session = Depends(get_db)):
