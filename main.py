@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 from collections import deque
 
 # ── 자동 백업 설정 ──
-BACKUP_DIR = os.path.join(_DATA_DIR, "backups")
+BACKUP_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")), "backups")
 BACKUP_INTERVAL_SEC = int(os.getenv("BACKUP_INTERVAL_MIN", "30")) * 60  # 기본 30분
 BACKUP_KEEP_COUNT = int(os.getenv("BACKUP_KEEP_COUNT", "24"))  # 최근 24개(12시간치) 유지
 _backup_task_handle: asyncio.Task | None = None
