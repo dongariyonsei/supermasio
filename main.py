@@ -43,17 +43,23 @@ def _rotate_backups():
         os.remove(os.path.join(BACKUP_DIR, backups.pop(0)))
 
 
+def _data_dir():
+    return os.getenv("DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"))
+
+
 def _do_backup():
     """WAL 체크포인트 후 persistent volume에 백업"""
-    db_path = os.path.join(_DATA_DIR, "orders.db")
+    db_path = os.path.join(_data_dir(), "orders.db")
     if not os.path.exists(db_path):
         return
     try:
-        # WAL → 메인 DB 병합
-        with engine.connect() as conn:
-            from sqlalchemy import text as _sa_text
+        # WAL → 메인 DB 병합 (engine이 아직 안 만들어졌을 수 있으므로 직접 커넥트)
+        from sqlalchemy import create_engine as _ce, text as _sa_text
+        _eng = _ce(f"sqlite:///{db_path}")
+        with _eng.connect() as conn:
             conn.execute(_sa_text("PRAGMA wal_checkpoint(TRUNCATE)"))
             conn.commit()
+        _eng.dispose()
         # 타임스탬프 백업
         kst = timezone("Asia/Seoul")
         ts = dt.datetime.now(kst).strftime("%Y%m%d_%H%M%S")
@@ -68,7 +74,7 @@ def _do_backup():
 
 def _try_auto_restore():
     """DB 손상 시 최신 백업에서 자동 복원"""
-    db_path = os.path.join(_DATA_DIR, "orders.db")
+    db_path = os.path.join(_data_dir(), "orders.db")
     if not os.path.exists(BACKUP_DIR):
         print("[AUTO-RESTORE] no backup directory — cannot restore")
         return
