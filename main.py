@@ -194,7 +194,30 @@ _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _DATA_DIR = os.getenv("DATA_DIR", os.path.join(_BASE_DIR, "data"))
 os.makedirs(_DATA_DIR, exist_ok=True)
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{_DATA_DIR}/orders.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# ── SQLite 동시성 설정 ──
+# WAL 모드: 읽기-쓰기 동시 허용 (기본 DELETE 모드는 쓰기 중 읽기 블로킹)
+# busy_timeout: DB 잠금 시 5초까지 재시도 (기본 0 = 즉시 OperationalError)
+# pool_size=1: SQLite 단일 writer 제약에 맞춰 커넥션 1개로 직렬화
+# check_same_thread=False: FastAPI 스레드 풀에서 접근 허용
+from sqlalchemy import event as sa_event
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    pool_size=1,
+    max_overflow=0,
+)
+
+@sa_event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")  # FULL 대비 성능↑, 안전성 충분
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -2301,6 +2324,14 @@ async def create_gift_order(
 ):
     """다른 테이블에 주문하기 (선물 주문)"""
     try:
+        # 송신 테이블의 활성 세션 검증 (인증 없는 API의 최소 보호)
+        from_session = get_active_session(db, request.from_table_id)
+        if from_session is None:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "session_expired", "message": "보내는 테이블의 세션이 만료되었습니다. 페이지를 새로고침해주세요."}
+            )
+
         print(f"Received gift order - from: {request.from_table_id}, to: {request.to_table_id}, menu: {request.menu}")
         
         # 메뉴 데이터 가져오기
