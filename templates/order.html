@@ -71,7 +71,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 {# ── 메뉴 카테고리 렌더링 ── #}
 {% if session_state == 'active' %}
 
-{% set gradient_by_category = {'set_menu':'purple','main_dishes':'red','side_dishes':'orange','drinks':'purple'} %}
+{% set gradient_by_category = {'set_menu':'purple','main_dishes':'red','side_dishes':'orange','other':'purple'} %}
 {% set gradient_by_item = {
     'Meal for Three (3 pax)':'purple',
     'Meal for Four (4 pax)':'green',
@@ -103,7 +103,9 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     'Water':'figma_oneup_water.png'
 } %}
 {% set fallback_cycle = ['purple', 'green', 'darkred', 'red', 'orange', 'pink', 'yellow', 'lightblue'] %}
-{% set beverage_items = menu_items_by_category.get('drinks', []) %}
+{% set beverage_items = menu_items_by_category.get('other', [])
+    | selectattr('description', 'search', '무지개로드')
+    | list %}
 
 {% macro menu_card(item, category_key, idx=0) -%}
 <div class="m-menu-card order-menu-card"
@@ -179,14 +181,20 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         메인 요리
     {% elif category_key == 'side_dishes' %}
         사이드 메뉴
-    {% elif category_key == 'drinks' %}
-        음료
+    {% elif category_key == 'other' %}
+        기타
     {% else %}
         {{ category_display_names.get(category_key, category_key) }}
     {% endif %}
 </div>
 
-{% if category_key == 'drinks' %}
+{% if category_key == 'other' %}
+    {# -- 일반 "기타" 아이템 (소스 추가, 상쾌환 스틱, 1UP 생명수) -- #}
+    {% for item in items_in_category if '무지개로드' not in (item.description or '') %}
+        {{ menu_card(item, category_key, loop.index0) }}
+    {% endfor %}
+
+    {# -- 무지개로드 음료 카드 -- #}
     {% if beverage_items %}
     <div class="m-menu-card m-beverage-card" data-gradient="purple" style="--card-height:clamp(620px, calc(144.87 * var(--vw)), 1708px);">
         <div class="m-menu-card-inner">

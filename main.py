@@ -623,18 +623,18 @@ FIGMA_MENU_SEED = [
     dict(name_kr="키노피오의 불타는 두부마을", name_en="Toad’s Tofu with Stir-fried Kimchi", price=16500, category="main_dishes", description="불타는 마을에서 완성된\n화끈한 두부김치", image_filename="toad_tofu_kimchi.png"),
     dict(name_kr="쿠파의 화염 삼겹살(160g)", name_en="Bowser’s Pork Belly", price=15900, category="main_dishes", description="쿠파의 화염 브레스를\n담아낸 삼겹살", image_filename="bowser_pork_belly.png"),
     dict(name_kr="피치 공주의 삼겹볶음밥", name_en="Peach’s Pork Belly Fried Rice", price=14900, category="main_dishes", description="쿠파한테 납치돼도\n포기 못하는 삼겹볶음밥", image_filename="peach_fried_rice.png"),
-    dict(name_kr="마리오 레드 나초탑", name_en="Mario’s Stacked Nachos", price=7900, category="main_dishes", description="마리오도 등반\n포기한 나초탑", image_filename="mario_red_nachos.png"),
-    dict(name_kr="요시였던 것", name_en="Not-Yoshi Dried Filefish", price=7900, category="main_dishes", description="요시 실종 후\n발견된 수상한 쥐포", image_filename="not_yoshi_filefish.png"),
-    dict(name_kr="소스 추가", name_en="Extra Sauce", price=1500, category="side_dishes", description="맛 능력치 강화 소스", image_filename="extra_sauce.png"),
-    dict(name_kr="레몬", name_en="Lemon", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="청사과", name_en="Apple", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="오렌지", name_en="Orange", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="에너지 드링크", name_en="Energy Drink", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="탄산수", name_en="Sparkling Water", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="펩시 콜라", name_en="Pepsi", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="칠성 사이다", name_en="Sprite", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
-    dict(name_kr="상쾌환 스틱", name_en="Hangover Care Stick", price=2000, category="side_dishes", description="플레이어 체력 회복템!\n간편한 숙취해소스틱", image_filename="hangover_stick.png"),
-    dict(name_kr="1UP 생명수", name_en="Water", price=2000, category="side_dishes", description="생명 하나 더 얻는\n신비로운 버섯왕국 생수", image_filename="oneup_water.png"),
+    dict(name_kr="마리오 레드 나초탑", name_en="Mario's Stacked Nachos", price=7900, category="side_dishes", description="마리오도 등반\n포기한 나초탑", image_filename="mario_red_nachos.png"),
+    dict(name_kr="요시였던 것", name_en="Not-Yoshi Dried Filefish", price=7900, category="side_dishes", description="요시 실종 후\n발견된 수상한 쥐포", image_filename="not_yoshi_filefish.png"),
+    dict(name_kr="소스 추가", name_en="Extra Sauce", price=1500, category="other", description="맛 능력치 강화 소스", image_filename="extra_sauce.png"),
+    dict(name_kr="레몬", name_en="Lemon", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="청사과", name_en="Apple", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="오렌지", name_en="Orange", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="에너지 드링크", name_en="Energy Drink", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="탄산수", name_en="Sparkling Water", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="펩시 콜라", name_en="Pepsi", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="칠성 사이다", name_en="Sprite", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="상쾌환 스틱", name_en="Hangover Care Stick", price=2000, category="other", description="플레이어 체력 회복템!\n간편한 숙취해소스틱", image_filename="hangover_stick.png"),
+    dict(name_kr="1UP 생명수", name_en="Water", price=2000, category="other", description="생명 하나 더 얻는\n신비로운 버섯왕국 생수", image_filename="oneup_water.png"),
     dict(name_kr="포장 이벤트 맥주", name_en="Takeout Bonus Beer", price=0, category="event_bonus", description="포장 이벤트 선택", image_filename="main_banner.png", is_active=False),
     dict(name_kr="포장 이벤트 소주", name_en="Takeout Bonus Soju", price=0, category="event_bonus", description="포장 이벤트 선택", image_filename="main_banner.png", is_active=False),
 ]
@@ -721,7 +721,7 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
 
     # order.html 및 카테고리 기반 뷰를 위한 구조
     # 카테고리 순서 정의 (order.html 표시 순서)
-    category_order = ["set_menu", "main_dishes", "side_dishes", "drinks"]
+    category_order = ["set_menu", "main_dishes", "side_dishes", "other"]
     
     menu_items_grouped_by_category = {category: [] for category in category_order}
     for item in active_items:
@@ -737,16 +737,14 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
             "키노피오의 불타는 두부마을": 0,
             "쿠파의 화염 삼겹살(160g)": 1,
             "피치 공주의 삼겹볶음밥": 2,
-            "마리오 레드 나초탑": 3,
-            "요시였던 것": 4,
         }
         menu_items_grouped_by_category["main_dishes"].sort(key=lambda x: main_order.get(x.name_kr, 99))
     if menu_items_grouped_by_category["side_dishes"]:
-        side_order = {"소스 추가": 0, "상쾌환 스틱": 2, "1UP 생명수": 3}
+        side_order = {"마리오 레드 나초탑": 0, "요시였던 것": 1}
         menu_items_grouped_by_category["side_dishes"].sort(key=lambda x: side_order.get(x.name_kr, 99))
-    if menu_items_grouped_by_category["drinks"]:
-        drink_order = {"레몬": 0, "청사과": 1, "오렌지": 2, "에너지 드링크": 3, "탄산수": 4, "펩시 콜라": 5, "칠성 사이다": 6}
-        menu_items_grouped_by_category["drinks"].sort(key=lambda x: drink_order.get(x.name_kr, 99))
+    if menu_items_grouped_by_category["other"]:
+        other_order = {"소스 추가": 0, "상쾌환 스틱": 1, "1UP 생명수": 2, "레몬": 3, "청사과": 4, "오렌지": 5, "에너지 드링크": 6, "탄산수": 7, "펩시 콜라": 8, "칠성 사이다": 9}
+        menu_items_grouped_by_category["other"].sort(key=lambda x: other_order.get(x.name_kr, 99))
 
     # 빈 카테고리 키는 유지하되, 리스트가 비어있음을 order.html에서 처리
 
@@ -754,8 +752,8 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
         "table": "상차림비",
         "set_menu": "세트 메뉴",
         "main_dishes": "메인 요리",
-        "drinks": "음료",
-        "side_dishes": "사이드 메뉴"
+        "side_dishes": "사이드 메뉴",
+        "other": "기타"
     }
     
     return menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names
