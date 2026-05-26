@@ -743,8 +743,7 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
         side_order = {"마리오 레드 나초탑": 0, "요시였던 것": 1}
         menu_items_grouped_by_category["side_dishes"].sort(key=lambda x: side_order.get(x.name_kr, 99))
     if menu_items_grouped_by_category["other"]:
-        other_order = {"소스 추가": 0, "상쾌환 스틱": 1, "1UP 생명수": 2, "레몬": 3, "청사과": 4, "오렌지": 5, "에너지 드링크": 6, "탄산수": 7, "펩시 콜라": 8, "칠성 사이다": 9}
-        menu_items_grouped_by_category["other"].sort(key=lambda x: other_order.get(x.name_kr, 99))
+        menu_items_grouped_by_category["other"].sort(key=lambda x: x.price, reverse=True)
 
     # 빈 카테고리 키는 유지하되, 리스트가 비어있음을 order.html에서 처리
 
