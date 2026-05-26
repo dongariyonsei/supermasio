@@ -73,34 +73,34 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 
 {% set gradient_by_category = {'set_menu':'purple','main_dishes':'red','side_dishes':'orange','other':'purple'} %}
 {% set gradient_by_item = {
-    'Meal for Three (3 pax)':'purple',
-    'Meal for Four (4 pax)':'green',
-    'Meal for Five (5 pax)':'darkred',
-    'Bowser\'s Pork Belly':'red',
-    'Toad\'s Tofu with Stir-fried Kimchi':'orange',
-    'Peach\'s Pork Belly Fried Rice':'pink',
-    'Mario\'s Stacked Nachos':'red',
-    'Not-Yoshi Dried Filefish':'green',
-    'Extra Sauce':'orange',
-    'Hangover Care Stick':'yellow',
-    'Water':'lightblue'
+    '버섯왕국 올스타 세트 (3인)':'purple',
+    '마리오 파티 세트 (4인)':'green',
+    '쿠파 최종보스 세트 (5인)':'darkred',
+    '쿠파의 화염 삼겹살(160g)':'red',
+    '키노피오의 불타는 두부마을':'orange',
+    '피치 공주의 삼겹볶음밥':'pink',
+    '마리오 레드 나초탑':'red',
+    '요시였던 것':'green',
+    '소스 추가':'orange',
+    '상쾌환 스틱':'yellow',
+    '1UP 생명수':'lightblue'
 } %}
 {% set image_style_by_item = {
-    'Extra Sauce':'--card-height:clamp(206px, calc(54.54 * var(--vw)), 643px);',
-    "Toad's Tofu with Stir-fried Kimchi":'--card-height:clamp(310px, calc(81.9 * var(--vw)), 966px);'
+    '소스 추가':'--card-height:clamp(206px, calc(54.54 * var(--vw)), 643px);',
+    '키노피오의 불타는 두부마을':'--card-height:clamp(310px, calc(81.9 * var(--vw)), 966px);'
 } %}
 {% set figma_image_by_item = {
-    'Meal for Three (3 pax)':'figma_mario_allstar_set.png',
-    'Meal for Four (4 pax)':'figma_mario_party_set.png',
-    'Meal for Five (5 pax)':'figma_bowser_final_set.png',
-    "Bowser's Pork Belly":'figma_bowser_pork_belly.png',
-    "Toad's Tofu with Stir-fried Kimchi":'figma_toad_tofu_kimchi.png',
-    "Peach's Pork Belly Fried Rice":'figma_peach_fried_rice.png',
-    "Mario's Stacked Nachos":'figma_mario_red_nachos.png',
-    'Not-Yoshi Dried Filefish':'figma_not_yoshi_filefish.png',
-    'Extra Sauce':'figma_extra_sauce.png',
-    'Hangover Care Stick':'figma_hangover_stick.png',
-    'Water':'figma_oneup_water.png'
+    '버섯왕국 올스타 세트 (3인)':'figma_mario_allstar_set.png',
+    '마리오 파티 세트 (4인)':'figma_mario_party_set.png',
+    '쿠파 최종보스 세트 (5인)':'figma_bowser_final_set.png',
+    '쿠파의 화염 삼겹살(160g)':'figma_bowser_pork_belly.png',
+    '키노피오의 불타는 두부마을':'figma_toad_tofu_kimchi.png',
+    '피치 공주의 삼겹볶음밥':'figma_peach_fried_rice.png',
+    '마리오 레드 나초탑':'figma_mario_red_nachos.png',
+    '요시였던 것':'figma_not_yoshi_filefish.png',
+    '소스 추가':'figma_extra_sauce.png',
+    '상쾌환 스틱':'figma_hangover_stick.png',
+    '1UP 생명수':'figma_oneup_water.png'
 } %}
 {% set fallback_cycle = ['purple', 'green', 'darkred', 'red', 'orange', 'pink', 'yellow', 'lightblue'] %}
 {% set beverage_items = [] %}
@@ -113,12 +113,12 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 {% macro menu_card(item, category_key, idx=0) -%}
 <div class="m-menu-card order-menu-card"
      data-item-id="{{ item.id }}"
-     data-gradient="{{ gradient_by_item.get(item.name_en, gradient_by_category.get(category_key, fallback_cycle[idx % fallback_cycle|length])) }}"
-     style="{{ image_style_by_item.get(item.name_en, '') }}">
+     data-gradient="{{ gradient_by_item.get(item.name_kr, gradient_by_category.get(category_key, fallback_cycle[idx % fallback_cycle|length])) }}"
+     style="{{ image_style_by_item.get(item.name_kr, '') }}">
     <div class="m-menu-card-inner">
         <div class="m-menu-card-deco"></div>
-        {% if figma_image_by_item.get(item.name_en) %}
-        <img class="m-menu-card-img m-menu-card-img-figma" src="/static/images/mario/menu/{{ figma_image_by_item.get(item.name_en) }}" alt="{{ item.name_kr }}">
+        {% if figma_image_by_item.get(item.name_kr) %}
+        <img class="m-menu-card-img m-menu-card-img-figma" src="/static/images/mario/menu/{{ figma_image_by_item.get(item.name_kr) }}" alt="{{ item.name_kr }}">
         {% elif item.image_filename %}
         <img class="m-menu-card-img" src="/static/uploads/{{ item.image_filename }}" alt="{{ item.name_kr }}">
         {% else %}
