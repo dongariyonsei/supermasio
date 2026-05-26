@@ -16,6 +16,27 @@
 /* ══ Admin layout ══ */
 .mario-main { max-width: 100%; padding: 14px 12px 48px; }
 
+@media (min-width: 768px) {
+    .mh-redbar {
+        max-width: 100%;
+        height: 64px;
+        min-height: 64px;
+        justify-content: flex-start;
+        padding: 0 28px;
+    }
+    .mh-logo { height: 58px; min-height: 0; }
+    .mh-page-title {
+        position: static;
+        transform: none;
+        max-width: none;
+        margin-left: 24px;
+        font-size: 1.35rem;
+        text-align: left;
+    }
+    .mh-top-menu { display: none; }
+    .mario-main { padding: 24px; }
+}
+
 /* ── Sidebar ── */
 .admin-sidebar {
     background: #fff;
@@ -97,6 +118,46 @@
 .table { color: var(--m-ink); }
 .table thead th { font-family: var(--m-font); color: var(--m-red); border-bottom-width: 2px; font-weight: 700; }
 .table-warning td { background: #fff8e1; }
+.coupon-mobile-list {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+}
+.coupon-mobile-card {
+    border: 1px solid #f1d4d4;
+    border-radius: 14px;
+    background: #fff;
+    padding: 12px;
+}
+.coupon-mobile-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.coupon-mobile-code {
+    color: var(--m-red);
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+.coupon-mobile-discount {
+    font-family: var(--m-font);
+    color: var(--m-ink);
+    font-weight: 800;
+    white-space: nowrap;
+}
+.coupon-mobile-meta {
+    display: grid;
+    gap: 3px;
+    margin-top: 9px;
+    color: #6c757d;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+.coupon-mobile-card .btn {
+    width: 100%;
+    margin-top: 10px;
+}
 
 /* ── Buttons ── */
 .btn-primary { background: linear-gradient(135deg,var(--m-red-bright),var(--m-red)); border-color: var(--m-red); }

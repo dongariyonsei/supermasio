@@ -830,7 +830,7 @@ function toggleMenuItem(itemId) {
         cardEl.classList.remove('border-primary');
     } else {
         orderItems[itemId] = 1;
-        controlsEl.style.display = 'block';
+        controlsEl.style.display = 'flex';
         qtyEl.textContent = '1';
         cardEl.classList.add('border-primary');
     }

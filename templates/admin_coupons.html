@@ -3,6 +3,17 @@
 {% block title %}쿠폰 관리{% endblock %}
 
 {% block admin_content %}
+{% macro coupon_status_badge(c) -%}
+    {% if c.status == 'unused' %}<span class="badge bg-primary">미사용</span>
+    {% elif c.status == 'redeemed' %}<span class="badge bg-success">사용됨</span>
+    {% elif c.status == 'disabled' %}<span class="badge bg-secondary">비활성</span>
+    {% elif c.status == 'expired' %}<span class="badge bg-danger">만료</span>
+    {% endif %}
+{%- endmacro %}
+{% macro coupon_discount(c) -%}
+    {% if c.discount_type == 'percent' %}{{ c.discount_value }}%
+    {% else %}{{ c.discount_value|format_currency }}원{% endif %}
+{%- endmacro %}
         <div class="adm-page-hdr">
             <h2>쿠폰 관리</h2>
         </div>
@@ -63,7 +74,35 @@
         <div class="card">
             <div class="card-header"><i class="bi bi-list-ul me-2"></i>쿠폰 목록</div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="coupon-mobile-list d-md-none">
+                    {% for c in coupons %}
+                    <div class="coupon-mobile-card">
+                        <div class="coupon-mobile-top">
+                            <code class="coupon-mobile-code">{{ c.code }}</code>
+                            <div class="coupon-mobile-discount">{{ coupon_discount(c) }}</div>
+                        </div>
+                        <div class="mt-2">{{ coupon_status_badge(c) }}</div>
+                        <div class="coupon-mobile-meta">
+                            {% if c.memo %}<span>메모: {{ c.memo }}</span>{% endif %}
+                            <span>만료: {{ c.expires_at|kst if c.expires_at else '없음' }}</span>
+                            <span>생성: {{ c.created_at|kst }}</span>
+                            {% if c.status == 'redeemed' %}
+                            <span>사용: 주문 #{{ c.redeemed_order_id }} · 테이블 {{ c.redeemed_table_id }} · {{ c.redeemed_at|kst }}</span>
+                            {% elif c.reservation_name %}
+                            <span>예약: {{ c.reservation_name }}</span>
+                            {% endif %}
+                        </div>
+                        {% if c.status == 'unused' %}
+                        <form method="post" action="/admin/coupons/{{ c.id }}/disable" onsubmit="return confirm('이 쿠폰을 비활성화하시겠습니까?');">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">비활성화</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">생성된 쿠폰이 없습니다.</div>
+                    {% endfor %}
+                </div>
+                <div class="table-responsive d-none d-md-block">
                     <table class="table table-sm table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -81,15 +120,10 @@
                             <tr>
                                 <td><code>{{ c.code }}</code>{% if c.memo %}<br><small class="text-muted">{{ c.memo }}</small>{% endif %}</td>
                                 <td>
-                                    {% if c.discount_type == 'percent' %}{{ c.discount_value }}%
-                                    {% else %}{{ c.discount_value|format_currency }}원{% endif %}
+                                    {{ coupon_discount(c) }}
                                 </td>
                                 <td>
-                                    {% if c.status == 'unused' %}<span class="badge bg-primary">미사용</span>
-                                    {% elif c.status == 'redeemed' %}<span class="badge bg-success">사용됨</span>
-                                    {% elif c.status == 'disabled' %}<span class="badge bg-secondary">비활성</span>
-                                    {% elif c.status == 'expired' %}<span class="badge bg-danger">만료</span>
-                                    {% endif %}
+                                    {{ coupon_status_badge(c) }}
                                 </td>
                                 <td><small>{{ c.expires_at|kst if c.expires_at else '없음' }}</small></td>
                                 <td>

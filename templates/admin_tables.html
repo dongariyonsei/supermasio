@@ -71,7 +71,7 @@
         <!-- 테이블 목록 - 모바일 최적화 -->
         <div class="row g-2 g-md-3" id="tableGrid">
             {% for table in table_stats %}
-            <div class="col-6 col-lg-3 col-md-4 mb-2 mb-md-3 table-card" 
+            <div class="col-12 col-sm-6 col-lg-3 col-md-4 mb-2 mb-md-3 table-card" 
                  data-table-id="{{ table['table_id'] }}"
                  data-nickname="{{ table['nickname'] or '' }}"
                  data-is-online="{{ table['is_online']|lower }}"
@@ -185,11 +185,10 @@
                     <div class="card-footer p-2">
                         <div class="d-grid gap-1">
                             <a href="/admin/table/{{ table['table_id'] }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-list-ul me-1"></i><span class="d-none d-sm-inline">주문 내역</span>
+                                <i class="bi bi-list-ul me-1"></i><span>주문 내역</span>
                             </a>
                             <a href="/generate-qr/{{ table['table_id'] }}" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-qr-code me-1"></i><span class="d-none d-sm-inline">QR 다운로드</span>
-                                <span class="d-sm-none">QR</span>
+                                <i class="bi bi-qr-code me-1"></i><span>QR 다운로드</span>
                             </a>
                             {% if table['pending_count'] > 0 or table['cooking_count'] > 0 %}
                             <div class="btn-group">
@@ -210,7 +209,7 @@
                                     data-session-id="{{ table['session_id'] }}"
                                     data-table-id="{{ table['table_id'] }}"
                                     data-pending="{{ table['pending_count'] }}">
-                                <i class="bi bi-box-arrow-right me-1"></i><span class="d-none d-sm-inline">테이블 비우기</span>
+                                <i class="bi bi-box-arrow-right me-1"></i><span>테이블 비우기</span>
                             </button>
                             {% endif %}
                         </div>

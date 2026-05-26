@@ -77,7 +77,8 @@
     <div class="m-success-card m-payment-card">
         <p class="m-payment-copy-hint">터치해서 복사 ↓</p>
         <p class="m-payment-account">
-            <button type="button" id="account-number" onclick="copyAccountNumber()" title="터치해서 복사">
+            <button type="button" id="account-number" onclick="copyAccountNumber()" title="터치해서 복사"
+                    data-account-number="토스뱅크 1002-5683-2178">
                 계좌번호: 토스뱅크 1002&#8209;5683&#8209;2178
             </button>
         </p>
@@ -116,9 +117,10 @@
 {% block extra_js %}
 <script>
 function copyAccountNumber() {
-    var account = "토스뱅크 1001-9242-9914";
-    document.getElementById('account-number').style.opacity = '0.6';
-    setTimeout(function(){ document.getElementById('account-number').style.opacity = '1'; }, 200);
+    var accountButton = document.getElementById('account-number');
+    var account = accountButton.dataset.accountNumber;
+    accountButton.style.opacity = '0.6';
+    setTimeout(function(){ accountButton.style.opacity = '1'; }, 200);
     if (navigator.clipboard) {
         navigator.clipboard.writeText(account).then(function() {
             document.getElementById('copy-success').style.display = 'inline';

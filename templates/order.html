@@ -9,10 +9,7 @@
 {% if session_state == 'expired' %}
 <div class="m-card m-expired-card">
     <h3 class="m-card-heading">이용 시간이 종료되었습니다</h3>
-    <p class="m-card-subtext">다시 닉네임을 입력해주세요.</p>
-    <a class="m-btn" href="/order?table={{ table_id }}" style="display:inline-block;width:auto;padding:12px 28px;">
-        <span class="m-btn-title" style="font-size:1.2rem;">다시 입장하기</span>
-    </a>
+    <p class="m-card-subtext">아래에서 새 닉네임으로 다시 시작해주세요.</p>
 </div>
 {% endif %}
 
