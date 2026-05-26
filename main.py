@@ -1010,6 +1010,8 @@ async def send_chat_message(
     try:
         # 닉네임 설정 (없으면 기본값)
         if nickname:
+            import re as _re
+            nickname = _re.sub(r'<[^>]*>', '', nickname)
             manager.set_nickname(table_id, nickname)
             display_nickname = nickname
         else:
@@ -1264,6 +1266,9 @@ async def start_table_session(
     if not nickname:
         return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
     nickname = nickname[:30]
+    # XSS 방지: HTML 태그 제거
+    import re as _re
+    nickname = _re.sub(r'<[^>]*>', '', nickname)
 
     # 만료된 active 세션 정리
     expire_stale_sessions(db, table_id)
@@ -2148,11 +2153,13 @@ async def restore_database(
         with open(restore_path, "wb") as f:
             f.write(contents)
 
-        # 엔진 연결 해제 → 파일 교체 → 재연결
+        # 엔진 연결 해제 → 파일 교체 → Fly가 프로세스 재시작
         engine.dispose()
         shutil.move(restore_path, db_path)
 
-        return {"message": "DB 복원 완료. 서버를 재시작해주세요.", "status": "ok"}
+        # 프로세스 종료 → Fly.io 자동 재시작 (새 DB 로드)
+        import os as _os
+        _os._exit(0)
     except Exception as e:
         # 실패 시 원본 복구
         if os.path.exists(pre_restore_backup):

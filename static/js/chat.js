@@ -324,8 +324,8 @@ async function loadOnlineUsers() {
                 onlineCount.textContent = '1명 (나만)';
             } else {
                 onlineList.innerHTML = otherTables.map(table => 
-                    `<div class="online-user clickable" data-table-id="${table.table_id}" data-nickname="${table.nickname}">
-                        ${table.nickname || `테이블${table.table_id}`}
+                    `<div class="online-user clickable" data-table-id="${table.table_id}" data-nickname="${escapeHtml(table.nickname || '')}">
+                        ${escapeHtml(table.nickname || `테이블${table.table_id}`)}
                         <small class="text-muted ms-1">💬</small>
                     </div>`
                 ).join('');
@@ -459,11 +459,11 @@ function addMessageToChat(messageData, shouldScroll = true) {
         if (isMyMessage) {
             // 내가 보낸 개인 메시지
             const targetNickname = getTableNickname(messageData.target_table_id);
-            headerText = `나 → ${targetNickname} • ${messageData.formatted_time}`;
+            headerText = `나 → ${escapeHtml(targetNickname)} • ${messageData.formatted_time}`;
             messagePrefix = '🔒 ';
         } else {
             // 나에게 온 개인 메시지
-            headerText = `${messageData.nickname} → 나 • ${messageData.formatted_time}`;
+            headerText = `${escapeHtml(messageData.nickname)} → 나 • ${messageData.formatted_time}`;
             messagePrefix = '🔒 ';
         }
     } else {
@@ -471,7 +471,7 @@ function addMessageToChat(messageData, shouldScroll = true) {
         if (isMyMessage) {
             headerText = `나 • ${messageData.formatted_time}`;
         } else {
-            headerText = `${messageData.nickname} • ${messageData.formatted_time}`;
+            headerText = `${escapeHtml(messageData.nickname)} • ${messageData.formatted_time}`;
         }
     }
     
@@ -574,11 +574,11 @@ async function loadTablesForOrder() {
         
         tableSelection.innerHTML = otherTables.map(table => `
             <div class="col-md-4 col-sm-6 mb-3">
-                <div class="card table-card" data-table-id="${table.table_id}" data-nickname="${table.nickname}" 
+                <div class="card table-card" data-table-id="${table.table_id}" data-nickname="${escapeHtml(table.nickname || '')}" 
                      style="cursor: pointer; transition: all 0.3s;">
                     <div class="card-body text-center">
                         <i class="bi bi-person-circle" style="font-size: 2rem; color: var(--primary-color);"></i>
-                        <h6 class="mt-2 mb-0">${table.nickname}</h6>
+                        <h6 class="mt-2 mb-0">${escapeHtml(table.nickname)}</h6>
                         <small class="text-muted">테이블 ${table.table_id}</small>
                     </div>
                 </div>
@@ -982,7 +982,7 @@ function handleGiftOrderNotification(data) {
 function handleGiftAnnouncement(data) {
     const systemMessage = {
         type: "system_message",
-        message: `🎁 ${data.from_nickname}님이 ${data.to_nickname}님에게 ${data.amount.toLocaleString()}원의 주문을 선물했습니다!`,
+        message: `🎁 ${escapeHtml(data.from_nickname)}님이 ${escapeHtml(data.to_nickname)}님에게 ${data.amount.toLocaleString()}원의 주문을 선물했습니다!`,
         formatted_time: new Date().toLocaleString('ko-KR', {
             timeZone: 'Asia/Seoul',
             year: 'numeric',
@@ -1013,14 +1013,14 @@ function showGiftOrderAlert(data) {
                         <div class="mb-3">
                             <i class="bi bi-gift" style="font-size: 3rem; color: var(--success-color);"></i>
                         </div>
-                        <h6 class="mb-3">${data.from_nickname}님이 주문을 선물해주셨습니다!</h6>
+                        <h6 class="mb-3">${escapeHtml(data.from_nickname)}님이 주문을 선물해주셨습니다!</h6>
                         
                         <div class="card">
                             <div class="card-header">
                                 <strong>주문 내역</strong>
                             </div>
                             <div class="card-body">
-                                ${data.menu_items.map(item => `<div>${item}</div>`).join('')}
+                                ${data.menu_items.map(item => `<div>${escapeHtml(item)}</div>`).join('')}
                                 <hr>
                                 <strong>총 금액: ${data.amount.toLocaleString()}원</strong>
                             </div>
