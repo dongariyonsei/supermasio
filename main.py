@@ -1910,6 +1910,88 @@ async def kitchen_redirect(username: str = Depends(verify_admin)):
     return RedirectResponse(url="/admin/orders", status_code=303)
 
 
+@app.get("/admin/backup")
+async def backup_database(admin: str = Depends(verify_admin)):
+    """SQLite DB 백업 다운로드 — WAL 체크포인트 후 복사"""
+    db_path = os.path.join(_DATA_DIR, "orders.db")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Database file not found")
+
+    # WAL 체크포인트: WAL 파일 내용을 메인 DB에 병합
+    from sqlalchemy import text as sa_text
+    with engine.connect() as conn:
+        conn.execute(sa_text("PRAGMA wal_checkpoint(TRUNCATE)"))
+        conn.commit()
+
+    # 타임스탬프 파일명으로 복사
+    kst = timezone("Asia/Seoul")
+    ts = dt.datetime.now(kst).strftime("%Y%m%d_%H%M%S")
+    backup_name = f"orders_backup_{ts}.db"
+    backup_path = os.path.join(_DATA_DIR, backup_name)
+
+    shutil.copy2(db_path, backup_path)
+
+    # FileResponse 반환 후 백그라운드에서 임시 파일 정리
+    background = BackgroundTasks()
+    background.add_task(_cleanup_backup, backup_path)
+    return FileResponse(
+        backup_path,
+        media_type="application/x-sqlite3",
+        filename=backup_name,
+        background=background,
+    )
+
+
+def _cleanup_backup(path: str):
+    """다운로드 완료 후 임시 백업 파일 삭제"""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
+
+
+@app.post("/admin/restore")
+async def restore_database(
+    file: UploadFile = File(...),
+    admin: str = Depends(verify_admin),
+):
+    """백업 파일로 DB 복원 — 즉시 적용"""
+    if not file.filename or not file.filename.endswith(".db"):
+        raise HTTPException(status_code=400, detail=".db 파일만 업로드 가능합니다")
+
+    db_path = os.path.join(_DATA_DIR, "orders.db")
+
+    # 현재 DB 백업 (복원 실패 대비)
+    pre_restore_backup = db_path + ".pre_restore"
+    if os.path.exists(db_path):
+        shutil.copy2(db_path, pre_restore_backup)
+
+    try:
+        # 업로드 파일 저장
+        contents = await file.read()
+        restore_path = db_path + ".restore_tmp"
+        with open(restore_path, "wb") as f:
+            f.write(contents)
+
+        # 엔진 연결 해제 → 파일 교체 → 재연결
+        engine.dispose()
+        shutil.move(restore_path, db_path)
+
+        return {"message": "DB 복원 완료. 서버를 재시작해주세요.", "status": "ok"}
+    except Exception as e:
+        # 실패 시 원본 복구
+        if os.path.exists(pre_restore_backup):
+            shutil.copy2(pre_restore_backup, db_path)
+        raise HTTPException(status_code=500, detail=f"복원 실패: {str(e)}")
+    finally:
+        for tmp in [db_path + ".restore_tmp", pre_restore_backup]:
+            try:
+                os.remove(tmp)
+            except Exception:
+                pass
+
+
 @app.get("/admin/logout")
 async def logout():
     """로그아웃 처리"""
