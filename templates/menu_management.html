@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 
 {% block title %}관리자 - 메뉴 관리{% endblock %}
 
@@ -26,6 +26,9 @@
                     </a>
                     <a href="/admin/waiting" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-clock me-1"></i>웨이팅 관리
+                    </a>
+                    <a href="/admin/coupons" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-ticket-perforated me-1"></i>쿠폰 관리
                     </a>
                     <a href="/admin/menu" class="btn btn-primary btn-sm">
                         <i class="bi bi-menu-button-wide me-1"></i>메뉴 관리
@@ -64,6 +67,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/admin/waiting">
                         <i class="bi bi-clock me-2"></i>웨이팅 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/coupons">
+                        <i class="bi bi-ticket-perforated me-2"></i>쿠폰 관리
                     </a>
                 </li>
                 <li class="nav-item">

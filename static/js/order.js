@@ -40,6 +40,10 @@ function updateOrderSummary() {
     const totalAmount = document.getElementById('total-amount');
     const submitButton = document.getElementById('submit-order-btn');
     const summaryCount = document.getElementById('summary-count');
+
+    // This script can remain loaded briefly while document.write() swaps in the
+    // order-success page. Do not assume order-page nodes still exist.
+    if (!summary || !totalAmount || !submitButton) return;
     let total = 0;
     let totalCount = 0;
 
@@ -55,25 +59,53 @@ function updateOrderSummary() {
 
         const itemElement = document.createElement('div');
         itemElement.className = 'order-summary-item';
-        const itemNameEn = item.name_en || '';
-        itemElement.innerHTML = `
-            <div class="order-summary-main">
-                <strong>${item.name_kr}</strong>
-                ${itemNameEn ? `<span>${itemNameEn}</span>` : ''}
-            </div>
-            <div class="order-summary-meta">
-                <div class="order-summary-mini-controls">
-                    <button type="button" onclick="updateQuantity('${itemId}', -1)" aria-label="${item.name_kr} 줄이기">
-                        <i class="bi bi-dash"></i>
-                    </button>
-                    <span>${quantity}</span>
-                    <button type="button" onclick="updateQuantity('${itemId}', 1)" aria-label="${item.name_kr} 늘리기">
-                        <i class="bi bi-plus"></i>
-                    </button>
-                </div>
-                <strong>${itemTotal.toLocaleString()}원</strong>
-            </div>
-        `;
+
+        const main = document.createElement('div');
+        main.className = 'order-summary-main';
+        const nameKr = document.createElement('strong');
+        nameKr.textContent = item.name_kr || '';
+        main.appendChild(nameKr);
+        if (item.name_en) {
+            const nameEn = document.createElement('span');
+            nameEn.textContent = item.name_en;
+            main.appendChild(nameEn);
+        }
+
+        const meta = document.createElement('div');
+        meta.className = 'order-summary-meta';
+        const controls = document.createElement('div');
+        controls.className = 'order-summary-mini-controls';
+
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.setAttribute('aria-label', `${item.name_kr || '메뉴'} 늘리기`);
+        plus.addEventListener('click', () => updateQuantity(itemId, 1));
+        const plusIcon = document.createElement('i');
+        plusIcon.className = 'bi bi-plus';
+        plus.appendChild(plusIcon);
+
+        const count = document.createElement('span');
+        count.textContent = String(quantity);
+
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.setAttribute('aria-label', `${item.name_kr || '메뉴'} 줄이기`);
+        minus.addEventListener('click', () => updateQuantity(itemId, -1));
+        const minusIcon = document.createElement('i');
+        minusIcon.className = 'bi bi-dash';
+        minus.appendChild(minusIcon);
+
+        controls.appendChild(minus);
+        controls.appendChild(count);
+        controls.appendChild(plus);
+
+        const price = document.createElement('strong');
+        price.textContent = `${itemTotal.toLocaleString()}원`;
+        meta.appendChild(controls);
+        meta.appendChild(price);
+
+        itemElement.appendChild(main);
+        itemElement.appendChild(meta);
         summary.appendChild(itemElement);
     }
 
@@ -90,6 +122,8 @@ function updateOrderSummary() {
     totalAmount.textContent = `${total.toLocaleString()}원`;
     if (summaryCount) summaryCount.textContent = totalCount;
     submitButton.disabled = (total === 0) || sessionExpired;
+
+    updateFloatingCart(total, totalCount);
 }
 
 function showCouponMessage(text, isError) {
@@ -106,6 +140,7 @@ function clearCouponMessage() {
 }
 
 async function submitOrder() {
+    let replacedDocument = false;
     if (sessionExpired) {
         alert('이용 시간이 종료되어 주문할 수 없습니다.');
         return;
@@ -116,13 +151,16 @@ async function submitOrder() {
 
     clearCouponMessage();
     submitButton.disabled = true;
-    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span><span>주문 처리 중...</span>';
+    submitButton.classList.add('is-loading');
+    submitButton.textContent = '주문 처리 중...';
 
     const body = {
         'table_id': tableId,
         'menu': JSON.stringify(orderItems)
     };
     if (couponCode) body['coupon_code'] = couponCode;
+    const takeoutBonusInput = document.querySelector('input[name="takeout_bonus"]:checked');
+    if (takeoutBonusInput && takeoutBonusInput.value) body['takeout_bonus'] = takeoutBonusInput.value;
 
     try {
         const response = await fetch('/submit_order', {
@@ -132,10 +170,8 @@ async function submitOrder() {
         });
 
         if (response.ok) {
-            const result = await response.text();
-            document.open();
-            document.write(result);
-            document.close();
+            replacedDocument = true;
+            window.location.assign(response.url || `/order?table=${tableId}`);
             return;
         }
 
@@ -161,7 +197,11 @@ async function submitOrder() {
     } catch (error) {
         alert('주문 처리 중 오류가 발생했습니다.');
     } finally {
-        submitButton.innerHTML = '<i class="bi bi-check-circle"></i><span>주문하기</span>';
+        if (replacedDocument) return;
+        if (submitButton) {
+            submitButton.classList.remove('is-loading');
+            submitButton.textContent = '주문하기';
+        }
         updateOrderSummary();
     }
 }
@@ -170,7 +210,7 @@ async function submitOrder() {
 function handleSessionExpired() {
     sessionExpired = true;
     const overlay = document.getElementById('session-expired-overlay');
-    if (overlay) overlay.style.display = 'block';
+    if (overlay) overlay.classList.add('is-visible');
     const submitButton = document.getElementById('submit-order-btn');
     if (submitButton) submitButton.disabled = true;
     const timer = document.getElementById('session-timer');
@@ -202,7 +242,7 @@ function initSessionTimer() {
         const sec = remaining % 60;
         if (timerEl) timerEl.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
         if (warningEl) {
-            warningEl.style.display = (remaining * 1000 <= expiringSoonMs) ? 'block' : 'none';
+            warningEl.classList.toggle('is-visible', remaining * 1000 <= expiringSoonMs);
         }
     }
 
@@ -210,5 +250,58 @@ function initSessionTimer() {
     const intervalId = setInterval(tick, 1000);
 }
 
-document.addEventListener('DOMContentLoaded', initSessionTimer);
+// ─── 플로팅 카트 뱃지 ───
+let _cartInView = false;
+
+function updateFloatingCart(total, totalCount) {
+    const fc = document.getElementById('floating-cart');
+    if (!fc) return;
+    const countEl = document.getElementById('fc-count');
+    const totalEl = document.getElementById('fc-total');
+    if (countEl) countEl.textContent = totalCount;
+    if (totalEl) totalEl.textContent = `${total.toLocaleString()}원`;
+
+    const shouldShow = totalCount > 0 && !_cartInView && window.scrollY > 420;
+    const wasVisible = fc.classList.contains('is-visible');
+    if (shouldShow && !wasVisible) {
+        fc.classList.add('is-visible');
+    } else if (!shouldShow) {
+        fc.classList.remove('is-visible');
+    }
+}
+
+function scrollToCart() {
+    const cart = document.getElementById('order-cart');
+    if (cart) cart.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function initFloatingCart() {
+    const cart = document.getElementById('order-cart');
+    if (!cart || !('IntersectionObserver' in window)) return;
+    new IntersectionObserver((entries) => {
+        _cartInView = entries[0].isIntersecting;
+        const fc = document.getElementById('floating-cart');
+        if (!fc) return;
+        const hasItems = Object.keys(orderItems).length > 0;
+        if (hasItems && !_cartInView && window.scrollY > 420) {
+            fc.classList.add('is-visible');
+        } else {
+            fc.classList.remove('is-visible');
+        }
+    }, { threshold: 0.15 }).observe(cart);
+
+    window.addEventListener('scroll', () => {
+        const totalCount = Object.keys(orderItems).reduce((sum, itemId) => sum + (parseInt(orderItems[itemId]) || 0), 0);
+        const total = Object.entries(orderItems).reduce((sum, [itemId, quantity]) => {
+            const item = findMenuItem(itemId);
+            return sum + (item ? item.price * quantity : 0);
+        }, 0);
+        updateFloatingCart(total, totalCount);
+    }, { passive: true });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSessionTimer();
+    initFloatingCart();
+});
 updateOrderSummary();

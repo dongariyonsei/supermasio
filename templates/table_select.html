@@ -2,20 +2,23 @@
 
 {% block title %}테이블 선택 - 슈퍼 마시오{% endblock %}
 
-{% block content %}
-{% set subnav_state = '테이블 선택 중' %}
-{% include "partials/subnav.html" %}
+{% block page_title %}테이블 선택{% endblock %}
+{% block header_status %}테이블 선택 중{% endblock %}
 
+{% block content %}
+{# ── Section banner: red gradient pill (Figma 4076:528), white 70px ── #}
 <div class="m-banner">테이블 선택</div>
 
-<div class="table-grid">
-    {% for t in range(1, table_count + 1) %}
-    <a class="table-card-link" href="/order?table={{ t }}">
-        <div class="table-card-m">
-            <img src="/static/images/mario/table_item.png" alt="">
-            <span class="tc-label">테이블 {{ t }}</span>
-        </div>
-    </a>
-    {% endfor %}
+<div class="table-panel">
+    <div class="table-grid">
+        {% for t in range(1, table_count + 1) %}
+        <a class="table-card-link" href="/order?table={{ t }}">
+            <div class="table-card-m">
+                <img src="/static/images/mario/table_item.png" alt="">
+                <span class="tc-label">테이블 {{ t }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

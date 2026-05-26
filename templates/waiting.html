@@ -2,46 +2,69 @@
 
 {% block title %}웨이팅 등록 - 슈퍼 마시오{% endblock %}
 
+{% block page_title %}웨이팅{% endblock %}
+{% block header_status %}웨이팅 등록 중{% endblock %}
+
 {% block content %}
-{% set subnav_state = '웨이팅 등록 중' %}
-{% include "partials/subnav.html" %}
 
-<section class="m-card m-info-card">
-    <h2>자리가 없으신가요?</h2>
-    <p>웨이팅을 등록하시면<br>자리가 나는 대로 연락드립니다.</p>
-</section>
-
-<div id="waiting-success" class="m-alert-success" style="display:none;">
-    <h2 style="font-family:var(--m-display);color:var(--m-red);margin:0 0 8px;">웨이팅이 등록되었습니다! 🎉</h2>
-    <p style="margin:0;">자리가 나는 대로 연락드리겠습니다.<br>잠시만 기다려 주세요.</p>
+{# ── Intro text: 58px SeoulNamsan #3a3a3a ── #}
+<div class="m-waiting-intro">
+    <p class="m-waiting-intro-main">자리가 없으신가요?</p>
+    <p class="m-waiting-intro-sub">웨이팅을 등록하시면<br>자리가 나는 대로 연락드립니다.</p>
 </div>
 
-<form id="waitingForm" class="m-form">
-    <div class="m-field">
-        <label for="w-name">이름 *</label>
-        <input class="m-input" type="text" id="w-name" name="name" placeholder="홍길동" required>
+{# ── White card (1081×1633 r=37) with red gradient banner (1081×145 r=37) ── #}
+<div class="m-card m-waiting-card">
+    {# ── Red gradient banner: #ff3333→#d60a0a, "웨이팅 등록" 70px white ── #}
+    <div class="m-waiting-card-header">웨이팅 등록</div>
+
+    {# ── Success alert (hidden by default) ── #}
+    <div id="waiting-success" class="m-alert-success" style="display:none;">
+        <h2 style="font-family:var(--m-font);color:var(--m-red);margin:0 0 8px;">웨이팅이 등록되었습니다! 🎉</h2>
+        <p style="margin:0;">자리가 나는 대로 연락드리겠습니다.<br>잠시만 기다려 주세요.</p>
     </div>
-    <div class="m-field">
-        <label for="w-phone">전화번호 *</label>
-        <input class="m-input" type="tel" id="w-phone" name="phone" placeholder="010-0000-0000" required>
+
+    {# ── White form area ── #}
+    <div class="m-waiting-form-area">
+        <form id="waitingForm" class="m-form" method="POST" action="/waiting/add">
+            {# ── Field 1: 이름* (group 986×223, input 986×132 r=37 fill #fff5f5) ── #}
+            <div class="m-field">
+                <label for="w-name">이름*</label>
+                <input class="m-input" type="text" id="w-name" name="name" placeholder="홍길동" required>
+            </div>
+
+            {# ── Field 2: 전화번호* ── #}
+            <div class="m-field">
+                <label for="w-phone">전화번호*</label>
+                <input class="m-input" type="tel" id="w-phone" name="phone" placeholder="010-0000-0000" required>
+            </div>
+
+            {# ── Field 3: 인원수* (dropdown, polygon triangle #9d9d9d) ── #}
+            <div class="m-field">
+                <label for="w-party">인원수*</label>
+                <select class="m-select" id="w-party" name="party_size" required>
+                    <option value="">선택하세요</option>
+                    {% for i in range(1, 16) %}
+                    <option value="{{ i }}">{{ i }}명</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# ── Field 4: 특별 요청사항 (Figma: last field) ── #}
+            <div class="m-field">
+                <label for="w-notes">특별 요청사항</label>
+                <input class="m-input" type="text" id="w-notes" name="notes" placeholder="예: 추가 의자 필요">
+            </div>
+
+            {# ── Submit button: 620×184 r=39 grad #ff3333→#d60a0a "웨이팅 등록하기" 70px white ── #}
+            <div class="m-waiting-submit-wrap">
+                <button type="submit" class="m-btn m-submit m-waiting-submit">
+                    <span class="m-btn-title">웨이팅 등록하기</span>
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="m-field">
-        <label for="w-party">인원수 *</label>
-        <select class="m-select" id="w-party" name="party_size" required>
-            <option value="">선택하세요</option>
-            {% for i in range(1, 16) %}
-            <option value="{{ i }}">{{ i }}명</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="m-field">
-        <label for="w-notes">특별 요청사항</label>
-        <input class="m-input" type="text" id="w-notes" name="notes" placeholder="예: 추가 의자 필요">
-    </div>
-    <button type="submit" class="m-btn m-submit">
-        <span class="m-btn-title">웨이팅 등록하기</span>
-    </button>
-</form>
+</div>
 {% endblock %}
 
 {% block extra_js %}

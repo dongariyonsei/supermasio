@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, Boolean, ForeignKey, Text, func, case
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy.orm import sessionmaker, Session, relationship, selectinload
 from datetime import datetime
 import json
 import os
@@ -68,11 +68,13 @@ def ensure_kst(dt):
 # ─────────────────────────────────────────────────────────────
 # 중앙 집중식 서버 설정 (환경 변수로 재정의 가능, 안전한 기본값 제공)
 # ─────────────────────────────────────────────────────────────
-TABLE_SESSION_DURATION_MINUTES = int(os.getenv("TABLE_SESSION_DURATION_MINUTES", "60"))
+TABLE_SESSION_DURATION_MINUTES = int(os.getenv("TABLE_SESSION_DURATION_MINUTES", "90"))
 TABLE_SESSION_EXPIRING_SOON_MINUTES = int(os.getenv("TABLE_SESSION_EXPIRING_SOON_MINUTES", "10"))
 TABLE_COUNT = int(os.getenv("TABLE_COUNT", "50"))
 # 한 번에 생성 가능한 쿠폰 최대 개수
 COUPON_MAX_BATCH = int(os.getenv("COUPON_MAX_BATCH", "500"))
+# 관리자/주방 실시간 보드 전용 WebSocket 채널 (손님 테이블은 1번부터이므로 0은 staff 전용)
+STAFF_CHANNEL = 0
 
 # Custom Jinja2 filter to convert to KST and format
 def to_kst_filter(dt):
@@ -111,14 +113,26 @@ def simplify_menu_name(name):
     
     # 간결화 규칙들
     replacements = {
-        "부엉의 에너지 드링크": "에너지 드링크",
-        "너굴 장터 콜라": "콜라",
-        "숲속 바람 사이다": "사이다",
-        "숲속 삼겹살": "삼겹살",
-        "너굴의 비밀 레시비 김볶밥": "김치볶음밥",
-        "셰프 프랭클린의 두부김치": "두부김치",
-        "둘기가 숨어먹는 콘치즈": "콘치즈",
-        "마을 장터 나초": "나초",
+        "버섯왕국 올스타 세트 (3인)": "올스타 세트",
+        "마리오 파티 세트 (4인)": "파티 세트",
+        "쿠파 최종보스 세트 (5인)": "최종보스 세트",
+        "쿠파의 화염 삼겹살(160g)": "화염 삼겹살",
+        "키노피오의 불타는 두부마을": "두부김치",
+        "피치 공주의 삼겹볶음밥": "삼겹볶음밥",
+        "마리오 레드 나초탑": "나초",
+        "요시였던 것": "쥐포",
+        "소스 추가": "소스",
+        "레몬": "레몬",
+        "청사과": "청사과",
+        "오렌지": "오렌지",
+        "에너지 드링크": "에너지",
+        "탄산수": "탄산수",
+        "펩시 콜라": "펩시",
+        "칠성 사이다": "사이다",
+        "포장 이벤트 맥주": "이벤트 맥주",
+        "포장 이벤트 소주": "이벤트 소주",
+        "상쾌환 스틱": "상쾌환",
+        "1UP 생명수": "생수",
     }
     
     # 정확한 매칭 먼저 확인
@@ -195,6 +209,7 @@ class Order(Base):
     cancellation_reason = Column(String, nullable=True)  # 취소 사유
     created_at = Column(DateTime, default=get_kst_now)
     confirmed_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)  # 주문 전체 조리 완료(주방 '완료') 시각
 
     # 쿠폰/할인 관련 (하위 호환: 기존 코드는 amount = 최종 결제 금액을 계속 사용)
     original_amount = Column(Integer, nullable=True)   # 할인 전 소계
@@ -329,6 +344,7 @@ def run_migrations():
             ("final_amount", "INTEGER"),
             ("coupon_id", "INTEGER"),
             ("table_session_id", "INTEGER"),
+            ("completed_at", "DATETIME"),
         ]:
             if col_name not in order_cols:
                 missing.append((col_name, col_type))
@@ -337,6 +353,25 @@ def run_migrations():
                 for col_name, col_type in missing:
                     conn.execute(text(f"ALTER TABLE orders ADD COLUMN {col_name} {col_type}"))
                     print(f"[migration] orders.{col_name} 컬럼 추가됨")
+
+        # completed_at 백필: 결제확인 + 취소되지 않은 주문 중, 조리가 필요한 아이템
+        # (상차림비 제외)이 모두 completed 인 주문을 '완료' 로 표시한다.
+        if "completed_at" in {c["name"] for c in inspector.get_columns("orders")}:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "UPDATE orders SET completed_at = COALESCE(completed_at, confirmed_at, created_at) "
+                    "WHERE completed_at IS NULL AND payment_status='confirmed' AND is_cancelled=0 "
+                    "AND id NOT IN ("
+                    "  SELECT oi.order_id FROM order_items oi "
+                    "  JOIN menu_items mi ON mi.id = oi.menu_item_id "
+                    "  WHERE mi.category != 'table' AND oi.cooking_status IN ('pending','cooking')"
+                    ") "
+                    "AND id IN ("
+                    "  SELECT oi.order_id FROM order_items oi "
+                    "  JOIN menu_items mi ON mi.id = oi.menu_item_id "
+                    "  WHERE mi.category != 'table'"
+                    ")"
+                ))
 
     # 테이블당 active 세션이 1개만 존재하도록 부분 유니크 인덱스 생성.
     # 동시 닉네임 등록(near-simultaneous)으로 인한 중복 active 세션을 DB 레벨에서 방지한다.
@@ -437,6 +472,27 @@ def build_session_status(db: Session, table_id: int):
 
 
 # ─────────────────────────────────────────────────────────────
+# 주방 디쉬 큐 헬퍼
+# ─────────────────────────────────────────────────────────────
+def get_dish_queue(cooking_orders):
+    """확인된 주문들의 메뉴 아이템을 종류별로 집계해 주방 디쉬 뷰 반환."""
+    dish_map: Dict[int, dict] = {}
+    for order in cooking_orders:
+        for it in order.order_items:
+            if not it.menu_item or it.menu_item.category == "table":
+                continue
+            if it.cooking_status == "cancelled":
+                continue
+            mid = it.menu_item_id
+            if mid not in dish_map:
+                dish_map[mid] = {"menu_item": it.menu_item, "total": 0, "tables": []}
+            qty = it.quantity or 1
+            dish_map[mid]["total"] += qty
+            dish_map[mid]["tables"].append({"table_id": order.table_id, "order_id": order.id, "qty": qty})
+    return sorted(dish_map.values(), key=lambda d: -d["total"])
+
+
+# ─────────────────────────────────────────────────────────────
 # 쿠폰 헬퍼
 # ─────────────────────────────────────────────────────────────
 # 사람이 입력하기 쉬운 코드 생성을 위한 문자 집합 (혼동되는 0/O/1/I/L 제외)
@@ -477,27 +533,23 @@ def compute_discount(coupon: Coupon, subtotal: int) -> int:
 
 # 세트 메뉴 구성 정보 정의
 SET_MENU_COMPONENTS = {
-    "🌟 두근두근 2인 세트": {
-        "숲속 삼겹살": 2,
-        "셰프 프랭클린의 두부김치": 1,
-        "음료": 2,  # 실제로는 특정 음료를 선택하게 할 수 있음
-        "랜덤 뽑기권": 1
+    "버섯왕국 올스타 세트 (3인)": {
+        "쿠파의 화염 삼겹살(160g)": 2,
+        "피치 공주의 삼겹볶음밥": 1,
+        "음료": 1,
     },
-    "🌟 단짝 4인 세트": {
-        "숲속 삼겹살": 3,
-        "셰프 프랭클린의 두부김치": 1,
-        "너굴의 비밀 레시비 김볶밥": 1,
-        "음료": 4,
-        "랜덤 뽑기권": 2
+    "마리오 파티 세트 (4인)": {
+        "쿠파의 화염 삼겹살(160g)": 2,
+        "피치 공주의 삼겹볶음밥": 1,
+        "키노피오의 불타는 두부마을": 1,
+        "음료": 1,
     },
-    "🌟 모여봐요 6인 세트": {
-        "숲속 삼겹살": 5,
-        "셰프 프랭클린의 두부김치": 1,
-        "너굴의 비밀 레시비 김볶밥": 1,
-        "둘기가 숨어먹는 콘치즈": 1,
-        "마을 장터 나초": 1,
-        "음료": 6,
-        "랜덤 뽑기권": 4
+    "쿠파 최종보스 세트 (5인)": {
+        "쿠파의 화염 삼겹살(160g)": 3,
+        "피치 공주의 삼겹볶음밥": 1,
+        "키노피오의 불타는 두부마을": 1,
+        "마리오 레드 나초탑": 1,
+        "음료": 2,
     }
 }
 
@@ -522,7 +574,7 @@ def decompose_set_menu(menu_items: Dict[str, int], db: Session) -> List[Dict]:
             for component_name, component_quantity in set_components.items():
                 if component_name == "음료":
                     # 음료는 기본 음료로 설정 (추후 선택 가능하게 확장 가능)
-                    default_drink_id = menu_name_to_id.get("숲속 바람 사이다")
+                    default_drink_id = menu_name_to_id.get("레몬")
                     if default_drink_id:
                         decomposed_items.append({
                             "menu_item_id": default_drink_id,
@@ -560,102 +612,87 @@ def decompose_set_menu(menu_items: Dict[str, int], db: Session) -> List[Dict]:
     return decomposed_items
 
 # 초기 메뉴 데이터 생성 함수
+FIGMA_MENU_SEED = [
+    dict(name_kr="상차림비(인당)", name_en="table", price=6000, category="table", description=None, image_filename="table.png"),
+    dict(name_kr="버섯왕국 올스타 세트 (3인)", name_en="Meal for Three (3 pax)", price=47000, category="set_menu", description="삼겹살(160g)*2 + 삼겹볶음밥\n+ 랜덤 음료 1개", image_filename="mario_allstar_set.png"),
+    dict(name_kr="마리오 파티 세트 (4인)", name_en="Meal for Four (4 pax)", price=64000, category="set_menu", description="삼겹살(160g)*2 + 삼겹볶음밥\n+ 두부김치 + 랜덤 음료 1개", image_filename="mario_party_set.png"),
+    dict(name_kr="쿠파 최종보스 세트 (5인)", name_en="Meal for Five (5 pax)", price=87000, category="set_menu", description="삼겹살(160g)*3 + 삼겹볶음밥\n+ 두부김치 + 나초탑 + 음료 2개", image_filename="bowser_final_set.png"),
+    dict(name_kr="키노피오의 불타는 두부마을", name_en="Toad’s Tofu with Stir-fried Kimchi", price=16500, category="main_dishes", description="불타는 마을에서 완성된\n화끈한 두부김치", image_filename="toad_tofu_kimchi.png"),
+    dict(name_kr="쿠파의 화염 삼겹살(160g)", name_en="Bowser’s Pork Belly", price=15900, category="main_dishes", description="쿠파의 화염 브레스를\n담아낸 삼겹살", image_filename="bowser_pork_belly.png"),
+    dict(name_kr="피치 공주의 삼겹볶음밥", name_en="Peach’s Pork Belly Fried Rice", price=14900, category="main_dishes", description="쿠파한테 납치돼도\n포기 못하는 삼겹볶음밥", image_filename="peach_fried_rice.png"),
+    dict(name_kr="마리오 레드 나초탑", name_en="Mario’s Stacked Nachos", price=7900, category="main_dishes", description="마리오도 등반\n포기한 나초탑", image_filename="mario_red_nachos.png"),
+    dict(name_kr="요시였던 것", name_en="Not-Yoshi Dried Filefish", price=7900, category="main_dishes", description="요시 실종 후\n발견된 수상한 쥐포", image_filename="not_yoshi_filefish.png"),
+    dict(name_kr="소스 추가", name_en="Extra Sauce", price=1500, category="side_dishes", description="맛 능력치 강화 소스", image_filename="extra_sauce.png"),
+    dict(name_kr="레몬", name_en="Lemon", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="청사과", name_en="Apple", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="오렌지", name_en="Orange", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="에너지 드링크", name_en="Energy Drink", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="탄산수", name_en="Sparkling Water", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="펩시 콜라", name_en="Pepsi", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="칠성 사이다", name_en="Sprite", price=3000, category="drinks", description="무지개로드 음료", image_filename="rainbow_road.png"),
+    dict(name_kr="상쾌환 스틱", name_en="Hangover Care Stick", price=2000, category="side_dishes", description="플레이어 체력 회복템!\n간편한 숙취해소스틱", image_filename="hangover_stick.png"),
+    dict(name_kr="1UP 생명수", name_en="Water", price=2000, category="side_dishes", description="생명 하나 더 얻는\n신비로운 버섯왕국 생수", image_filename="oneup_water.png"),
+    dict(name_kr="포장 이벤트 맥주", name_en="Takeout Bonus Beer", price=0, category="event_bonus", description="포장 이벤트 선택", image_filename="main_banner.png", is_active=False),
+    dict(name_kr="포장 이벤트 소주", name_en="Takeout Bonus Soju", price=0, category="event_bonus", description="포장 이벤트 선택", image_filename="main_banner.png", is_active=False),
+]
+
+
 def init_menu_data(db: Session):
-    """초기 메뉴 데이터 생성"""
-    if db.query(MenuItem).first() is None:
-        initial_menu = [
-            MenuItem(name_kr="상차림비(인당)", name_en="table", price=6000, category="table", image_filename="table.png"), # Typically no specific image
-            MenuItem(
-                name_kr="🌟 두근두근 2인 세트",
-                name_en="🌟 2-person set",
-                price=35000,
-                category="set_menu",
-                description="둘이 앉아 조용히 속닥속닥 🌿\n(숲속 삼겹살 2인분 + 두부김치 + 음료 2잔 + 랜덤 뽑기권 1개)",
-                image_filename="2-person-set.png"
-            ),
-            MenuItem(
-                name_kr="🌟 단짝 4인 세트",
-                name_en="🌟 4-person set",
-                price=59900,
-                category="set_menu",
-                description="친구들, 이웃들 다 모여~ 파티 파티 🎇\n(숲속 삼겹살 3인분 + 두부김치 + 김치볶음밥 + 음료 4잔 + 랜덤 뽑기권 2개)",
-                image_filename="4-person-set.png"
-            ),
-            MenuItem(
-                name_kr="🌟 모여봐요 6인 세트",
-                name_en="🌟 6-person set",
-                price=85900,
-                category="set_menu",
-                description="마을 축제처럼 신나게!\n(숲속 삼겹살 5인분 + 두부김치 + 김치볶음밥 + 콘치즈 + 마을 장터 나초 + 음료 6잔 + 랜덤 뽑기권 4개)",
-                image_filename="6-person-set.png"
-            ),
-            MenuItem(
-                name_kr="숲속 삼겹살",
-                name_en="samgyeopsal",
-                price=8900,
-                category="main_dishes",
-                description="바람 솔솔~ 숲속 바비큐 파티 시작!\n지글지글 구워서 따끈하게 한 점 🐷🔥",
-                image_filename="samgyeopsal.png"
-            ),
-            MenuItem(
-                name_kr="너굴의 비밀 레시비 김볶밥",
-                name_en="kimchi_fried_rice",
-                price=11900,
-                category="main_dishes",
-                description="너굴 마트표 김치로 만든 마법의 볶음밥!\n밤하늘 아래서 먹으면 꿀맛 🍚🌟",
-                image_filename="kimchi_fried_rice.png"
-            ),
-            MenuItem(
-                name_kr="셰프 프랭클린의 두부김치",
-                name_en="tofu_kimchi",
-                price=13900,
-                category="main_dishes",
-                description="마을 최고 셰프의 두부 + 정성으로 구운 김치\n포근하고 든든한 마을 스타일 안주 💬🍽️",
-                image_filename="tofu_kimchi.png"
-            ),
-            MenuItem(
-                name_kr="둘기가 숨어먹는 콘치즈",
-                name_en="corn_cheese",
-                price=8900,
-                category="main_dishes",
-                description="비둘기 마스터의 최애 간식!\n달콤하고 고소해서 숟가락이 멈추지 않아요 🌽🧀✨",
-                image_filename="corn_cheese.png"
-            ),
-            MenuItem(
-                name_kr="마을 장터 나초",
-                name_en="nachos",
-                price=7900,
-                category="main_dishes",
-                description="마을 주민들이 손수 만든 바삭바삭 나초 🌿\n모닥불 옆에서 친구들과 나눠 먹는 소중한 맛 🎇",
-                image_filename="nachos.png"
-            ),
-            MenuItem(
-                name_kr="숲속 바람 사이다",
-                name_en="forest_cider",
-                price=1900,
-                category="drinks",
-                description="시원한 바람처럼 톡톡~ 상쾌하게 🌬️🥤\n(청량감 최고! 더위도 걱정 없어요 ❄️)",
-                image_filename="forest_cider.png"
-            ),
-            MenuItem(
-                name_kr="너굴 장터 콜라",
-                name_en="raccoon_cola",
-                price=1900,
-                category="drinks",
-                description="마을 장터에서 제일 인기 많은 탄산음료!\n톡 쏘는 맛에 기분도 두 배 🎉🐾",
-                image_filename="raccoon_cola.png"
-            ),
-            MenuItem(
-                name_kr="부엉의 에너지 드링크",
-                name_en="owl_energy_drink",
-                price=1900,
-                category="drinks",
-                description="밤새 파티? 문제없어! 🦉🌙\n부엉이처럼 깨어있게 도와주는 마법의 한 캔 🪄🥤",
-                image_filename="owl_energy_drink.png"
-            ),
-        ]
-        db.add_all(initial_menu)
+    """Synchronize the Figma Super Mario seed.
+
+    Existing custom admin-created rows are preserved, but known seed rows are
+    updated in-place so older local DBs do not keep stale Animal Crossing assets
+    or the old single-item beverage model.
+    """
+    existing = db.query(MenuItem).order_by(MenuItem.id).all()
+    by_name = {item.name_kr: item for item in existing}
+
+    if not existing:
+        db.add_all(MenuItem(**item) for item in FIGMA_MENU_SEED)
         db.commit()
+        return
+
+    # Disable obsolete/transitional seed rows that should not be visible/orderable.
+    obsolete_names = {
+        "무지개로드",
+        "🌟 두근두근 2인 세트", "🌟 단짝 4인 세트", "🌟 모여봐요 6인 세트",
+        "숲속 삼겹살", "너굴의 비밀 레시비 김볶밥", "셰프 프랭클린의 두부김치",
+        "둘기가 숨어먹는 콘치즈", "마을 장터 나초",
+        "너굴 장터 콜라", "부엉의 에너지 드링크",
+        # Renamed items — old names must be disabled so the new-name rows take over
+        "버섯왕국 올스타 세트", "마리오 파티 세트", "쿠파 최종보스 세트",
+        "쿠파의 화염 삼겹살", "피치공주의 삼겹볶음밥", "요시였던 것 (쥐포)",
+        "슈퍼스타 주먹밥",
+    }
+
+    # name_en is UNIQUE. A seed rename can transiently collide when a new value
+    # equals another row's old value (e.g. relabeling set menus). Park every
+    # seed/obsolete name_en on a temporary unique value first so the final
+    # assignment is safe without mutating custom admin-created rows.
+    # If the process crashes between flush() and commit(), rows are left with
+    # name_en = "__pending_X". This is self-healing: on the next startup,
+    # the same loop re-runs and overwrites those values correctly.
+    seeded_or_obsolete_names = {seed["name_kr"] for seed in FIGMA_MENU_SEED} | obsolete_names
+    for row in existing:
+        if row.name_kr not in seeded_or_obsolete_names:
+            continue
+        row.name_en = f"__pending_{row.id}"
+    db.flush()
+
+    for seed in FIGMA_MENU_SEED:
+        row = by_name.get(seed["name_kr"])
+        if row is None:
+            db.add(MenuItem(**seed))
+            continue
+        for key, value in seed.items():
+            setattr(row, key, value)
+        if "is_active" not in seed:
+            row.is_active = True
+
+    for row in existing:
+        if row.name_kr in obsolete_names:
+            row.is_active = False
+    db.commit()
 
 # 메뉴 데이터 초기화
 init_menu_data(next(get_db()))
@@ -670,6 +707,7 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
         str(item.id): {
             "id": str(item.id),
             "name_kr": item.name_kr,
+            "name_en": item.name_en,
             "price": item.price,
             "category": item.category,
             "description": item.description,
@@ -680,21 +718,32 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
 
     # order.html 및 카테고리 기반 뷰를 위한 구조
     # 카테고리 순서 정의 (order.html 표시 순서)
-    category_order = ["table", "set_menu", "main_dishes", "drinks", "side_dishes"]
+    category_order = ["set_menu", "main_dishes", "side_dishes", "drinks"]
     
     menu_items_grouped_by_category = {category: [] for category in category_order}
     for item in active_items:
         if item.category in menu_items_grouped_by_category:
             menu_items_grouped_by_category[item.category].append(item)
 
-    # 세트메뉴는 2인 -> 4인 -> 6인 순서로 정렬
+    # 세트메뉴는 Figma 화면 순서로 정렬
     if menu_items_grouped_by_category["set_menu"]:
-        menu_items_grouped_by_category["set_menu"].sort(key=lambda x: (
-            0 if "2인" in x.name_kr else
-            1 if "4인" in x.name_kr else
-            2 if "6인" in x.name_kr else
-            3
-        ))
+        set_order = {"버섯왕국 올스타 세트 (3인)": 0, "마리오 파티 세트 (4인)": 1, "쿠파 최종보스 세트 (5인)": 2}
+        menu_items_grouped_by_category["set_menu"].sort(key=lambda x: set_order.get(x.name_kr, 99))
+    if menu_items_grouped_by_category["main_dishes"]:
+        main_order = {
+            "키노피오의 불타는 두부마을": 0,
+            "쿠파의 화염 삼겹살(160g)": 1,
+            "피치 공주의 삼겹볶음밥": 2,
+            "마리오 레드 나초탑": 3,
+            "요시였던 것": 4,
+        }
+        menu_items_grouped_by_category["main_dishes"].sort(key=lambda x: main_order.get(x.name_kr, 99))
+    if menu_items_grouped_by_category["side_dishes"]:
+        side_order = {"소스 추가": 0, "상쾌환 스틱": 2, "1UP 생명수": 3}
+        menu_items_grouped_by_category["side_dishes"].sort(key=lambda x: side_order.get(x.name_kr, 99))
+    if menu_items_grouped_by_category["drinks"]:
+        drink_order = {"레몬": 0, "청사과": 1, "오렌지": 2, "에너지 드링크": 3, "탄산수": 4, "펩시 콜라": 5, "칠성 사이다": 6}
+        menu_items_grouped_by_category["drinks"].sort(key=lambda x: drink_order.get(x.name_kr, 99))
 
     # 빈 카테고리 키는 유지하되, 리스트가 비어있음을 order.html에서 처리
 
@@ -1066,10 +1115,11 @@ async def submit_order(
     table_id: int = Form(...),
     menu: str = Form(...),
     coupon_code: str = Form(None),
+    takeout_bonus: str = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
-        print(f"Received order request - table_id: {table_id}, menu: {menu}, coupon: {coupon_code}")
+        print(f"Received order request - table_id: {table_id}, menu: {menu}, coupon: {coupon_code}, takeout_bonus: {takeout_bonus}")
 
         # 0. 테이블 세션 검증 (서버 측). 클라이언트 카운트다운은 신뢰하지 않는다.
         active_session = get_active_session(db, table_id)
@@ -1143,6 +1193,15 @@ async def submit_order(
 
         final_amount = max(0, subtotal - discount_amount)  # 음수 총액 방지
 
+        normalized_bonus = (takeout_bonus or "").strip().lower()
+        takeout_bonus_map = {
+            "beer": "포장 이벤트 맥주",
+            "soju": "포장 이벤트 소주",
+        }
+        takeout_bonus_name = takeout_bonus_map.get(normalized_bonus)
+        if normalized_bonus and takeout_bonus_name is None:
+            raise HTTPException(status_code=400, detail="Invalid takeout bonus selection")
+
         # 5~8. 단일 트랜잭션: 주문 생성 → 아이템 생성 → 쿠폰 원자적 사용 처리 → 1회 commit
         try:
             order = Order(
@@ -1185,6 +1244,24 @@ async def submit_order(
                 )
                 db.add(order_item)
 
+            # Persist the takeout beer/soju choice as a hidden zero-price OrderItem
+            # so kitchen/admin screens can see the operational request.
+            if takeout_bonus_name:
+                bonus_item = db.query(MenuItem).filter(MenuItem.name_kr == takeout_bonus_name).first()
+                if not bonus_item:
+                    print(f"[warn] takeout bonus item '{takeout_bonus_name}' not found in DB; bonus skipped")
+                if bonus_item:
+                    db.add(OrderItem(
+                        order_id=order.id,
+                        menu_item_id=bonus_item.id,
+                        quantity=1,
+                        cooking_status="pending",
+                        completed_at=None,
+                        is_set_component=False,
+                        parent_set_name=None,
+                        notes="포장 이벤트 선택"
+                    ))
+
             # 쿠폰 원자적 사용 처리: status='unused' 인 행만 갱신.
             # SQLite는 단일 writer 직렬화 + 조건부 UPDATE rowcount 검사로 동시 중복 사용을 방지한다.
             if coupon is not None:
@@ -1216,9 +1293,9 @@ async def submit_order(
             db.rollback()
             raise HTTPException(status_code=500, detail="Failed to create order")
 
-        # WebSocket 알림 (실패해도 주문은 성공)
+        # WebSocket 알림 (실패해도 주문은 성공) — 관리자/주방 보드 전용 채널
         try:
-            await manager.broadcast(json.dumps({
+            await manager.broadcast_to_staff(json.dumps({
                 "type": "new_order",
                 "order_id": order.id,
                 "table_id": table_id,
@@ -1227,17 +1304,7 @@ async def submit_order(
         except Exception as ws_error:
             print(f"WebSocket error (non-critical): {str(ws_error)}")
 
-        # 주문 성공 페이지 반환
-        return templates.TemplateResponse(
-            "order_success.html",
-            {
-                "request": request,
-                "order": order,
-                "table_id": table_id,
-                "menu_names": menu_names_by_id,
-                "coupon": coupon
-            }
-        )
+        return RedirectResponse(url=f"/order-success/{order.id}", status_code=303)
 
     except HTTPException:
         raise
@@ -1257,37 +1324,40 @@ async def admin_orders(
     # 메뉴 데이터 가져오기
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
     
+    # N+1 방지: 주문 아이템과 메뉴를 미리 로드
+    _eager = selectinload(Order.order_items).selectinload(OrderItem.menu_item)
+
     # 결제 대기 중인 주문 (취소되지 않은 것만)
-    pending_orders = db.query(Order).filter(
+    pending_orders = db.query(Order).options(_eager).filter(
         Order.payment_status == "pending",
         Order.is_cancelled == False
-    ).all()
-    
-    # 진행 중인 주문들 (조리가 필요한 아이템이 하나라도 조리 중이거나 대기중인 주문, 취소되지 않은 것만)
-    cooking_orders = db.query(Order).filter(
+    ).order_by(Order.created_at.desc()).all()
+
+    # 조리 대기(큐): 결제확인됐고 아직 완료되지 않은 주문
+    cooking_orders = db.query(Order).options(_eager).filter(
         Order.payment_status == "confirmed",
-        Order.is_cancelled == False
-    ).join(OrderItem).join(MenuItem).filter(
-        OrderItem.cooking_status.in_(["pending", "cooking"]),
-        MenuItem.category != "table"  # 상차림비 제외
-    ).distinct().order_by(Order.confirmed_at.desc()).all()
-    
-    # 완전히 완료된 주문들 (실제 조리가 필요한 아이템들이 모두 완료된 주문)
-    completed_orders = db.query(Order).filter(
+        Order.is_cancelled == False,
+        Order.completed_at.is_(None)
+    ).order_by(Order.confirmed_at.desc()).all()
+
+    # 완료된 주문 (완료 시각 기준 최근 10개)
+    completed_orders = db.query(Order).options(_eager).filter(
         Order.payment_status == "confirmed",
-        Order.is_cancelled == False
-    ).outerjoin(OrderItem).outerjoin(MenuItem).group_by(Order.id).having(
-        # 조리가 필요한 아이템(상차림비 제외)이 없거나, 있다면 모두 완료되어야 함
-        (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 0) |
-        (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 
-         func.sum(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table") & (OrderItem.cooking_status == "completed"), 1), else_=0)))
-    ).order_by(Order.confirmed_at.desc()).limit(10).all()
-    
+        Order.is_cancelled == False,
+        Order.completed_at.isnot(None)
+    ).order_by(Order.completed_at.desc()).limit(10).all()
+
     # 취소된 주문들 (최근 10개)
-    cancelled_orders = db.query(Order).filter(
+    cancelled_orders = db.query(Order).options(_eager).filter(
         Order.is_cancelled == True
     ).order_by(Order.cancelled_at.desc()).limit(10).all()
     
+    waiting_list = db.query(Waiting).filter(
+        Waiting.status.in_(["waiting", "called"])
+    ).order_by(Waiting.created_at.asc()).all()
+
+    dish_queue = get_dish_queue(cooking_orders)
+
     return templates.TemplateResponse(
         "admin_orders.html",
         {
@@ -1297,7 +1367,9 @@ async def admin_orders(
             "completed_orders": completed_orders,
             "cancelled_orders": cancelled_orders,
             "username": username,
-            "menu_names": menu_names_by_id
+            "menu_names": menu_names_by_id,
+            "waiting_list": waiting_list,
+            "dish_queue": dish_queue,
         }
     )
 
@@ -1660,7 +1732,17 @@ async def confirm_order(
     order.payment_status = "confirmed"
     order.confirmed_at = get_kst_now()
     db.commit()
-    
+
+    # 주방 보드에 즉시 반영
+    try:
+        await manager.broadcast_to_staff(json.dumps({
+            "type": "payment_confirmed",
+            "order_id": order.id,
+            "table_id": order.table_id
+        }))
+    except Exception as e:
+        print(f"WebSocket notification error: {e}")
+
     return RedirectResponse(url="/admin/orders", status_code=303)
 
 @app.post("/admin/orders/cancel/{order_id}")
@@ -1675,11 +1757,9 @@ async def cancel_order(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    if order.payment_status == "confirmed":
-        # 결제 완료된 주문은 조리 시작 전에만 취소 가능
-        cooking_items = [item for item in order.order_items if item.cooking_status == "cooking"]
-        if cooking_items:
-            raise HTTPException(status_code=400, detail="Cannot cancel order with items already cooking")
+    if order.completed_at is not None:
+        # 이미 조리 완료(제공)된 주문은 취소 불가 — 환불은 별도 처리
+        raise HTTPException(status_code=400, detail="Cannot cancel a completed order")
     
     # 주문 취소 처리
     order.is_cancelled = True
@@ -1696,9 +1776,9 @@ async def cancel_order(
     
     db.commit()
     
-    # WebSocket으로 취소 알림
+    # WebSocket으로 취소 알림 (관리자/주방 보드)
     try:
-        await manager.broadcast_to_all(json.dumps({
+        await manager.broadcast_to_staff(json.dumps({
             "type": "order_cancelled",
             "order_id": order.id,
             "table_id": order.table_id,
@@ -1734,9 +1814,9 @@ async def cancel_order_item(
     
     db.commit()
     
-    # WebSocket으로 아이템 취소 알림
+    # WebSocket으로 아이템 취소 알림 (관리자/주방 보드)
     try:
-        await manager.broadcast_to_all(json.dumps({
+        await manager.broadcast_to_staff(json.dumps({
             "type": "item_cancelled",
             "item_id": item_id,
             "order_id": order_item.order_id,
@@ -1747,60 +1827,8 @@ async def cancel_order_item(
     except Exception as e:
         print(f"WebSocket notification error: {e}")
     
-    return RedirectResponse(url="/kitchen", status_code=303)
+    return RedirectResponse(url="/admin/orders", status_code=303)
 
-@app.get("/kitchen", response_class=HTMLResponse)
-async def kitchen_display(
-    request: Request,
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_admin)
-):
-    # 메뉴 데이터 가져오기
-    menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
-    
-    # 결제 확인된 주문의 조리 대기/진행 중인 아이템들 (취소되지 않은 것만)
-    cooking_items = db.query(OrderItem).join(Order).join(MenuItem).filter(
-        Order.payment_status == "confirmed",
-        Order.is_cancelled == False,
-        OrderItem.cooking_status.in_(["pending", "cooking"]),
-        OrderItem.menu_item_id.isnot(None),  # 뽑기권 등 특별 아이템 제외
-        MenuItem.category != "table"  # 상차림비 제외
-    ).order_by(Order.confirmed_at.desc()).all()
-    
-    # 결제 대기 중인 주문들 (전체 주문 단위로, 취소되지 않은 것만)
-    pending_orders = db.query(Order).filter(
-        Order.payment_status == "pending",
-        Order.is_cancelled == False
-    ).order_by(Order.created_at.desc()).all()
-    
-    # 완료된 아이템들 (취소되지 않은 주문의 아이템만, 상차림비 제외)
-    completed_items = db.query(OrderItem).join(Order).join(MenuItem).filter(
-        Order.payment_status == "confirmed",
-        Order.is_cancelled == False,
-        OrderItem.cooking_status == "completed",
-        OrderItem.menu_item_id.isnot(None),
-        MenuItem.category != "table"  # 상차림비 제외
-    ).order_by(OrderItem.completed_at.desc()).limit(20).all()
-    
-    # 취소된 아이템들 (최근 10개, 상차림비 제외)
-    cancelled_items = db.query(OrderItem).join(Order).join(MenuItem).filter(
-        OrderItem.cooking_status == "cancelled",
-        OrderItem.menu_item_id.isnot(None),
-        MenuItem.category != "table"  # 상차림비 제외
-    ).order_by(OrderItem.cancelled_at.desc()).limit(10).all()
-    
-    return templates.TemplateResponse(
-        "kitchen.html",
-        {
-            "request": request,
-            "cooking_items": cooking_items,
-            "pending_orders": pending_orders,
-            "completed_items": completed_items,
-            "cancelled_items": cancelled_items,
-            "username": username,
-            "menu_names": menu_names_by_id
-        }
-    )
 
 @app.post("/kitchen/update-item-status/{item_id}")
 async def update_item_cooking_status(
@@ -1821,7 +1849,7 @@ async def update_item_cooking_status(
         order_item.completed_at = get_kst_now()
     
     db.commit()
-    return RedirectResponse(url="/kitchen", status_code=303)
+    return RedirectResponse(url="/admin/orders", status_code=303)
 
 @app.post("/kitchen/update-status/{order_id}")
 async def update_cooking_status(
@@ -1835,17 +1863,91 @@ async def update_cooking_status(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    # 주문의 모든 아이템 상태 업데이트
+    now = get_kst_now()
+    # 주문의 모든 아이템 상태 업데이트 (취소된 아이템은 건드리지 않음)
     for order_item in order.order_items:
-        if order_item.menu_item_id:  # 실제 메뉴 아이템만
+        if order_item.menu_item_id and order_item.cooking_status != "cancelled":
             order_item.cooking_status = status
             if status == "cooking" and not order_item.started_at:
-                order_item.started_at = get_kst_now()
+                order_item.started_at = now
             elif status == "completed":
-                order_item.completed_at = get_kst_now()
-    
+                order_item.completed_at = now
+
+    # 주문 레벨 완료 시각: '완료' 이면 스탬프, 되돌리면 해제
+    order.completed_at = now if status == "completed" else None
     db.commit()
-    return RedirectResponse(url="/kitchen", status_code=303)
+
+    # 보드 실시간 반영
+    try:
+        await manager.broadcast_to_staff(json.dumps({
+            "type": "order_completed" if status == "completed" else "order_reopened",
+            "order_id": order.id,
+            "table_id": order.table_id
+        }))
+    except Exception as e:
+        print(f"WebSocket notification error: {e}")
+
+    return RedirectResponse(url="/admin/orders", status_code=303)
+
+
+@app.post("/admin/orders/complete-dish/{menu_item_id}")
+async def complete_dish(
+    menu_item_id: int,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """조리 중인 모든 주문에서 해당 메뉴 아이템을 일괄 완료 처리."""
+    cooking_order_ids = [
+        row[0] for row in db.query(Order.id).filter(
+            Order.payment_status == "confirmed",
+            Order.is_cancelled == False,
+            Order.completed_at.is_(None)
+        ).all()
+    ]
+    if not cooking_order_ids:
+        return RedirectResponse(url="/admin/orders", status_code=303)
+
+    items = db.query(OrderItem).filter(
+        OrderItem.order_id.in_(cooking_order_ids),
+        OrderItem.menu_item_id == menu_item_id,
+        OrderItem.cooking_status != "cancelled"
+    ).all()
+
+    now = get_kst_now()
+    affected_order_ids = set()
+    for item in items:
+        item.cooking_status = "completed"
+        item.completed_at = now
+        affected_order_ids.add(item.order_id)
+
+    # 해당 주문의 모든 아이템이 완료됐으면 주문 자체도 완료 처리
+    for oid in affected_order_ids:
+        pending_left = db.query(OrderItem).filter(
+            OrderItem.order_id == oid,
+            OrderItem.cooking_status.in_(["pending", "cooking"])
+        ).count()
+        if pending_left == 0:
+            order = db.query(Order).filter(Order.id == oid).first()
+            if order:
+                order.completed_at = now
+
+    db.commit()
+
+    try:
+        await manager.broadcast_to_staff(json.dumps({
+            "type": "order_completed",
+            "menu_item_id": menu_item_id
+        }))
+    except Exception:
+        pass
+
+    return RedirectResponse(url="/admin/orders", status_code=303)
+
+
+@app.get("/kitchen", response_class=HTMLResponse)
+async def kitchen_redirect(username: str = Depends(verify_admin)):
+    return RedirectResponse(url="/admin/orders", status_code=303)
+
 
 @app.get("/admin/logout")
 async def logout():
@@ -2152,6 +2254,10 @@ class ConnectionManager:
         """기존 호환성을 위한 메서드"""
         await self.broadcast_to_all(message)
 
+    async def broadcast_to_staff(self, message: str):
+        """관리자/주방 전용 채널(table_id=0)에만 전송. 손님 소켓은 깨우지 않는다."""
+        await self.broadcast_to_table(STAFF_CHANNEL, message)
+
     def get_online_tables(self) -> List[int]:
         """현재 온라인인 테이블 목록 반환"""
         online_tables = list(self.active_connections.keys())
@@ -2294,6 +2400,17 @@ async def order_success_page(
     if getattr(order, "coupon_id", None):
         coupon = db.query(Coupon).filter(Coupon.id == order.coupon_id).first()
 
+    takeout_bonus_item = (
+        db.query(MenuItem)
+        .join(OrderItem, OrderItem.menu_item_id == MenuItem.id)
+        .filter(
+            OrderItem.order_id == order.id,
+            MenuItem.category == "event_bonus",
+            OrderItem.cooking_status != "cancelled"
+        )
+        .first()
+    )
+
     return templates.TemplateResponse(
         "order_success.html",
         {
@@ -2302,7 +2419,8 @@ async def order_success_page(
             "table_id": order.table_id,
             "menu_names": menu_names_by_id,
             "is_gift_order": gift,
-            "coupon": coupon
+            "coupon": coupon,
+            "takeout_bonus_name": takeout_bonus_item.name_kr if takeout_bonus_item else None
         }
     )
 

@@ -701,6 +701,16 @@ async function loadMenuForOrder() {
     }
 }
 
+
+function escapeHtmlForChat(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 메뉴 카테고리 렌더링
 function renderMenuCategories() {
     const menuCategories = document.getElementById('menu-categories');
@@ -715,11 +725,11 @@ function renderMenuCategories() {
         return;
     }
     
-    const categories = ['table', 'set_menu', 'main_dishes', 'drinks'];
+    const categories = ['set_menu', 'main_dishes', 'side_dishes', 'drinks'];
     const categoryNames = {
-        'table': '상차림비',
         'set_menu': '세트 메뉴',
         'main_dishes': '메인 요리',
+        'side_dishes': '음료 및 기타',
         'drinks': '음료'
     };
     
@@ -729,30 +739,35 @@ function renderMenuCategories() {
         
         return `
             <div class="mb-4">
-                <h6 class="text-primary">${categoryNames[category]}</h6>
+                <h6 class="text-primary">${escapeHtmlForChat(categoryNames[category])}</h6>
                 <div class="row">
-                    ${items.map(item => `
+                    ${items.map(item => {
+                        const safeId = escapeHtmlForChat(item.id);
+                        const safeName = escapeHtmlForChat(item.name_kr);
+                        const safeDesc = escapeHtmlForChat(item.description || '');
+                        const safePrice = Number(item.price || 0).toLocaleString();
+                        return `
                         <div class="col-md-6 mb-2">
-                            <div class="card menu-item-card" data-item-id="${item.id}" style="cursor: pointer;">
+                            <div class="card menu-item-card" data-item-id="${safeId}" style="cursor: pointer;">
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
-                                            <h6 class="mb-1">${item.name_kr}</h6>
-                                            <small class="text-muted">${item.description || ''}</small>
+                                            <h6 class="mb-1">${safeName}</h6>
+                                            <small class="text-muted">${safeDesc}</small>
                                             <div class="mt-1">
-                                                <strong>${item.price.toLocaleString()}원</strong>
+                                                <strong>${safePrice}원</strong>
                                             </div>
                                         </div>
-                                        <div class="quantity-controls" id="controls-${item.id}" style="display: none;">
-                                            <button class="btn btn-sm btn-outline-primary quantity-minus" data-item-id="${item.id}">-</button>
-                                            <span class="mx-2" id="qty-${item.id}">1</span>
-                                            <button class="btn btn-sm btn-outline-primary quantity-plus" data-item-id="${item.id}">+</button>
+                                        <div class="quantity-controls" id="controls-${safeId}" style="display: none;">
+                                            <button class="btn btn-sm btn-outline-primary quantity-minus" data-item-id="${safeId}">-</button>
+                                            <span class="mx-2" id="qty-${safeId}">1</span>
+                                            <button class="btn btn-sm btn-outline-primary quantity-plus" data-item-id="${safeId}">+</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         `;

@@ -1,112 +1,143 @@
-{% extends "base.html" %}
+{% extends "base_mario.html" %}
 
-{% block title %}주문 완료{% endblock %}
+{% block page_title %}주문 완료{% endblock %}
+{% block header_status %}테이블 {{ order.table_id }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-body text-center">
-                    <i class="bi bi-check-circle-fill text-success display-1 mb-3"></i>
-                    {% if is_gift_order %}
-                    <h2 class="card-title">🎁 선물 주문이 성공적으로 접수되었습니다!</h2>
-                    <p class="card-text fs-5">받는 테이블: <strong>{{ order.table_id }}</strong></p>
-                    <p class="card-text fs-5">주문 번호: <strong>#{{ order.id }}</strong></p>
-                    <p class="card-text fs-5">주문 시간: <strong>{{ order.created_at|kst if order.created_at else '-' }}</strong></p>
-                    <p class="card-text fs-5">총 금액: <strong>{{ order.amount|format_currency }}원</strong></p>
-                    <div class="alert alert-info mt-3">
-                        <i class="bi bi-gift me-2"></i>
-                        <strong>선물 주문이 접수되었습니다!</strong><br>
-                        받는 테이블에 알림이 전송되었습니다. 결제 확인 후 주방에서 준비를 시작합니다.
-                    </div>
-                    {% else %}
-                    <h2 class="card-title">주문이 성공적으로 접수되었습니다!</h2>
-                    <p class="card-text fs-5">테이블 번호: <strong>{{ order.table_id }}</strong></p>
-                    <p class="card-text fs-5">주문 번호: <strong>#{{ order.id }}</strong></p>
-                    <p class="card-text fs-5">주문 시간: <strong>{{ order.created_at|kst if order.created_at else '-' }}</strong></p>
-                    <p class="card-text fs-5">총 금액: <strong>{{ order.amount|format_currency }}원</strong></p>
-                    {% endif %}
-                    
-                    <h4 class="mt-4 mb-3">주문 내역</h4>
-                    <div class="order-items mb-4">
-                        <ul class="list-group">
-                            {% for item_id, quantity in order.menu.items() %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ menu_names[item_id] }}
-                                <span class="badge bg-primary rounded-pill">{{ quantity }}개</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+<div class="m-success">
+    {# ── Success hero: "주문이 성공적으로 접수 되었습니다!" — Figma: 80px #d60a0a LEFT ── #}
+    <div class="m-success-hero">
+        {% if is_gift_order %}
+        <h2 class="m-success-title">🎁 선물 주문이 성공적으로 접수되었습니다!</h2>
+        {% else %}
+        <h2 class="m-success-title">주문이 성공적으로 접수되었습니다!</h2>
+        {% endif %}
+    </div>
 
-                    <div class="payment-info mb-4">
-                        <h4 class="mb-3">결제 안내</h4>
+    {# ── 총 금액 — Figma: 58px #3a3a3a LEFT ── #}
+    <div class="m-success-total-info">
+        총 금액: <span class="m-coin" aria-hidden="true"></span> {{ order.amount|format_currency }}원
+    </div>
 
-                        <!-- 수기 송금 안내 섹션 -->
-                        <div class="manual-transfer-section">
-                            <h5>계좌이체로 결제</h5>
-                            <div class="transfer-info p-3 bg-light rounded">
-                                <p class="mb-2">
-                                    계좌번호: 
-                                    <strong id="account-number" style="cursor:pointer;" onclick="copyAccountNumber()" title="클릭하면 복사됩니다">
-                                        토스뱅크 1001-9242-9914
-                                        <span class="ms-1 text-secondary" style="font-size:0.95em;">(터치해서 복사)</span>
-                                    </strong>
-                                    <span id="copy-success" class="text-success ms-2" style="display:none;">복사됨!</span>
-                                </p>
-                                <p class="mb-2">예금주: 유진</p>
-                                <script>
-                                    function copyAccountNumber() {
-                                        const account = "토스뱅크 1001-9242-9914";
-                                        if (navigator.clipboard) {
-                                            navigator.clipboard.writeText(account).then(function() {
-                                                document.getElementById('copy-success').style.display = 'inline';
-                                                setTimeout(function() {
-                                                    document.getElementById('copy-success').style.display = 'none';
-                                                }, 1200);
-                                            });
-                                        } else {
-                                            // fallback for old browsers
-                                            const temp = document.createElement('input');
-                                            temp.value = account;
-                                            document.body.appendChild(temp);
-                                            temp.select();
-                                            document.execCommand('copy');
-                                            document.body.removeChild(temp);
-                                            document.getElementById('copy-success').style.display = 'inline';
-                                            setTimeout(function() {
-                                                document.getElementById('copy-success').style.display = 'none';
-                                            }, 1200);
-                                        }
-                                    }
-                                </script>
-                                {% if is_gift_order %}
-                                <p class="mb-0 text-danger">💬 <strong>메모에 꼭 "선물주문#{{ order.id }}" 입력</strong></p>
-                                {% else %}
-                                <p class="mb-0 text-danger">💬 <strong>메모에 꼭 "테이블{{ order.table_id }}" 입력</strong></p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-warning">
-                        <h5 class="alert-heading">⚠️ 주의사항</h5>
-                        {% if is_gift_order %}
-                        <p class="mb-0">선물 주문의 결제 확인이 완료되어야 받는 테이블에 메뉴가 준비됩니다.</p>
-                        {% else %}
-                        <p class="mb-0">결제 확인이 완료되어야 주문하신 메뉴가 준비됩니다.</p>
-                        {% endif %}
-                    </div>
-
-                    {% if is_gift_order %}
-                    <a href="/chat" class="btn btn-primary">채팅으로 돌아가기</a>
-                    {% else %}
-                    <a href="/order?table={{ order.table_id }}" class="btn btn-primary">주문으로 돌아가기</a>
-                    {% endif %}
-                </div>
-            </div>
+    {% if order.discount_amount and order.discount_amount > 0 %}
+    <div class="m-success-card m-success-discount-info">
+        <div class="m-success-info-row">
+            <span>주문 금액</span><strong>{{ order.original_amount|format_currency }}원</strong>
+        </div>
+        <div class="m-success-info-row">
+            <span>쿠폰 할인</span><strong>-{{ order.discount_amount|format_currency }}원</strong>
+        </div>
+        <div class="m-success-info-row">
+            <span>최종 금액</span><strong>{{ order.amount|format_currency }}원</strong>
         </div>
     </div>
+    {% endif %}
+
+    {# ── 주문 정보 — Figma: 58px #3a3a3a, white card ── #}
+    <div class="m-success-card m-success-order-info">
+        <div class="m-success-info-row">
+            <span>테이블 번호</span><strong>{{ order.table_id }}</strong>
+        </div>
+        <div class="m-success-info-row">
+            <span>주문 번호</span><strong>#{{ order.id }}</strong>
+        </div>
+        <div class="m-success-info-row">
+            <span>주문 시간</span><strong>{{ order.created_at.strftime('%Y.%m.%d %H:%M') if order.created_at else '' }}</strong>
+        </div>
+        {% if takeout_bonus_name %}
+        <div class="m-success-info-row">
+            <span>포장 이벤트</span><strong>{{ takeout_bonus_name.replace('포장 이벤트 ', '') }}</strong>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Gradient background strip: #df1212→#ffa725→#ffc11a ── #}
+    <div class="m-success-gradient-strip"></div>
+
+    {# ── 주문 내역 — Figma: white bg label + white card ── #}
+    <div class="m-section-label">주문 내역</div>
+    <div class="m-success-card">
+        {% for item_id, quantity in order.menu.items() %}
+        <div class="m-success-row">
+            <span class="sr-name">{{ menu_names[item_id] }}</span>
+            <span class="sr-qty">{{ quantity }}개</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Decorative icon strip (Figma image 71–79, sits above 결제 안내) ── #}
+    <div class="m-icon-strip" aria-hidden="true">
+        {% for n in ['71','72','72-1','73','74','75','76','79','78'] %}
+        <img src="/static/images/mario/decor/image_{{ n }}.svg" alt="">
+        {% endfor %}
+    </div>
+
+    {# ── 결제 안내 — Figma: account + copy + name + memo ── #}
+    <div class="m-section-label">결제 안내</div>
+    <div class="m-success-card m-payment-card">
+        <p class="m-payment-copy-hint">터치해서 복사 ↓</p>
+        <p class="m-payment-account">
+            <button type="button" id="account-number" onclick="copyAccountNumber()" title="터치해서 복사">
+                계좌번호: 토스뱅크 1002&#8209;5683&#8209;2178
+            </button>
+        </p>
+        <span id="copy-success" class="copy-success" style="display:none;">복사됨!</span>
+        <p class="m-payment-deposit">예금주: 윤지원</p>
+        {% if is_gift_order %}
+        <p class="m-payment-memo">메모에 꼭 <strong>"선물주문#{{ order.id }}"</strong> 입력해주세요</p>
+        {% else %}
+        <p class="m-payment-memo">메모에 꼭 <strong>"테이블 {{ order.table_id }}"</strong> 입력해주세요</p>
+        {% endif %}
+    </div>
+
+    {# ── 주의사항 — Figma: 58px #3a3a3a CENTER ── #}
+    <div class="m-section-label">주의사항</div>
+    <div class="m-success-card">
+        <p class="m-success-caution-text">
+            {% if is_gift_order %}
+            선물 주문의 결제 확인이 완료되어야<br>받는 테이블에 메뉴가 준비됩니다.
+            {% else %}
+            결제 확인이 완료되어야<br>주문하신 메뉴가 준비됩니다.
+            {% endif %}
+        </p>
+    </div>
+
+    {# ── 돌아가기 버튼 — Figma: 550x156, grad #ff3333→#d60a0a, r=39, white text ── #}
+    <div class="m-success-back">
+        {% if is_gift_order %}
+        <a class="m-success-back-btn" href="/chat">채팅으로 돌아가기</a>
+        {% else %}
+        <a class="m-success-back-btn" href="/order?table={{ order.table_id }}">주문으로 돌아가기</a>
+        {% endif %}
+    </div>
 </div>
-{% endblock %} 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyAccountNumber() {
+    var account = "토스뱅크 1001-9242-9914";
+    document.getElementById('account-number').style.opacity = '0.6';
+    setTimeout(function(){ document.getElementById('account-number').style.opacity = '1'; }, 200);
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(account).then(function() {
+            document.getElementById('copy-success').style.display = 'inline';
+            setTimeout(function() {
+                document.getElementById('copy-success').style.display = 'none';
+            }, 1200);
+        });
+    } else {
+        var temp = document.createElement('input');
+        temp.value = account;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        document.getElementById('copy-success').style.display = 'inline';
+        setTimeout(function() {
+            document.getElementById('copy-success').style.display = 'none';
+        }, 1200);
+    }
+}
+</script>
+{% endblock %}

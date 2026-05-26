@@ -2,21 +2,39 @@
 
 {% block title %}슈퍼 마시오{% endblock %}
 
+{% block page_title %}{% endblock %}
+{% block header_status %}{% endblock %}
+
 {% block content %}
-<section class="m-card home-card">
-    <img class="home-logo" src="/static/images/mario/logo.png" alt="슈퍼 마시오">
-    <p class="home-welcome">
-        슈퍼 마시오에 오신 것을 환영합니다.<br>
+{# ── White card r=37 (1081×1404 in Figma) containing title, buttons, prompt ── #}
+<div class="home-action-card">
+    {# ── Hero/logo rectangle (Figma 4076:307, 856×552) ── #}
+    <div class="home-hero-frame">
+        <img class="home-hero-img" src="/static/images/mario/hero_illustration.png" alt="슈퍼 마시오">
+    </div>
+
+    {# ── Welcome text: 58px → clamp, #3a3a3a, CENTER, SeoulNamsan ── #}
+    <p class="home-welcome-text">
+        슈퍼 마시오에 오신 것을 환영합니다.
+    </p>
+
+    {# ── Prompt (Figma: sits ABOVE the buttons, y=920): 58px #3a3a3a CENTER ── #}
+    <p class="home-prompt-text">
         이용하실 방식을 선택해주세요.
     </p>
+
+    {# ── Button group (920×540 in Figma, r=39) ── #}
     <div class="home-actions">
-        <a class="m-btn" href="/table-select">
-            <span class="m-btn-title">테이블 선택하기</span>
-            <span class="m-btn-sub">착석 후 선택해주세요</span>
+        {# ── Button 1: grad(#ff3333→#d60a0a) r=39, 2-line text 36px ── #}
+        <a class="home-btn" href="/table-select">
+            <span class="home-btn-line1">테이블 선택하기</span>
+            <span class="home-btn-line2">착석 후 선택해주세요</span>
         </a>
-        <a class="m-btn" href="/waiting">
-            <span class="m-btn-title">웨이팅 등록하기</span>
+
+        {# ── Button 2: grad(#ff3333→#d60a0a) r=39, 70px text ── #}
+        <a class="home-btn" href="/waiting">
+            <span class="home-btn-big">웨이팅 등록하기</span>
         </a>
     </div>
-</section>
+</div>
 {% endblock %}

@@ -1,130 +1,308 @@
-{% extends "base.html" %}
+{% extends "base_mario.html" %}
 
-{% block title %}주문하기 - 테이블 {{ table_id }}{% endblock %}
+{% block page_title %}메뉴판{% endblock %}
+{% block header_status %}테이블 {{ table_id }}{% if session_info and session_info.nickname %} · {{ session_info.nickname }}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>
-                <img src="/static/images/table_n.png" class="header-icon me-2" alt="테이블">테이블 {{ table_id }}
-            </h2>
-            <a href="/" class="btn btn-outline-primary">
-                <i class="bi bi-house-door me-2"></i>홈으로
-            </a>
-        </div>
 
-        {% for category_key, items_in_category in menu_items_by_category.items() %}
-        {% if items_in_category %} {# Only render card if category has items #}
-        <div class="card mb-4 animate-fade-in category-{{ category_key }}">
-            <div class="card-header header-{{ category_key }}">
-                <h3 class="mb-0">
-                    {# Icon logic based on category_key #}
-                    {% if category_key == 'table' %}
-                        <img src="/static/images/table.png" class="header-icon me-2" alt="상차림비">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'set_menu' %}
-                        <img src="/static/images/set.png" class="header-icon me-2" alt="세트메뉴">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'drinks' %}
-                        <img src="/static/images/drink.png" class="header-icon me-2" alt="음료">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'main_dishes' %}
-                        <img src="/static/images/main.png" class="header-icon me-2" alt="메인요리">{{ category_display_names[category_key] }}
-                    {% elif category_key == 'side_dishes' %}
-                        <i class="bi bi-basket me-2"></i>{{ category_display_names[category_key] }}
-                    {% else %}
-                        <i class="bi bi-list-ul me-2"></i>{{ category_display_names[category_key]|default(category_key|capitalize) }}
-                    {% endif %}
-                </h3>
+{# ── 세션 만료 안내 (초기 로드 시 이미 만료된 경우) ── #}
+{% if session_state == 'expired' %}
+<div class="m-card m-expired-card">
+    <h3 class="m-card-heading">이용 시간이 종료되었습니다</h3>
+    <p class="m-card-subtext">다시 닉네임을 입력해주세요.</p>
+    <a class="m-btn" href="/order?table={{ table_id }}" style="display:inline-block;width:auto;padding:12px 28px;">
+        <span class="m-btn-title" style="font-size:1.2rem;">다시 입장하기</span>
+    </a>
+</div>
+{% endif %}
+
+{# ── 세션 타이머 바 (활성 세션일 때만) ── #}
+{% if session_info and session_state == 'active' %}
+<div id="session-bar"
+     class="m-card m-session-bar"
+     data-expires-at="{{ session_info.expires_at }}"
+     data-server-now="{{ session_info.server_now }}"
+     data-expiring-soon-minutes="{{ expiring_soon_minutes }}">
+    <span class="m-session-label">⏱ {% if session_info.nickname %}{{ session_info.nickname }} · {% endif %}남은 시간</span>
+    <span id="session-timer" class="m-session-timer">90:00</span>
+    <span id="session-warning" class="m-session-warning">곧 만료!</span>
+</div>
+{% endif %}
+
+{# ── 닉네임 등록 (신규 세션) ── #}
+{% if session_state == 'register' or session_state == 'expired' %}
+<div class="m-card m-register-card">
+    <h3 class="m-card-heading" style="margin-bottom:12px;">닉네임을 입력해주세요</h3>
+    <p class="m-card-subtext">이용 시간 {{ session_duration_minutes }}분이 부여됩니다</p>
+    <form id="registerForm" class="m-form" style="max-width:320px;margin:0 auto;">
+        <div class="m-field">
+            <input class="m-input" type="text" id="reg-nickname" name="nickname" placeholder="닉네임" required maxlength="10" style="text-align:center;">
+        </div>
+        <button type="submit" class="m-btn">
+            <span class="m-btn-title" style="font-size:1.2rem;">이용 시작하기</span>
+        </button>
+    </form>
+</div>
+<script>
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const nick = document.getElementById('reg-nickname').value.trim();
+    if (!nick) return;
+    const btn = this.querySelector('button');
+    btn.disabled = true;
+    try {
+        const res = await fetch('/table-session/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({table_id: '{{ table_id }}', nickname: nick})
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.detail || '입장에 실패했습니다.');
+            btn.disabled = false;
+        }
+    } catch(err) {
+        alert('입장 중 오류가 발생했습니다.');
+        btn.disabled = false;
+    }
+});
+</script>
+{% endif %}
+
+{# ── 메뉴 카테고리 렌더링 ── #}
+{% if session_state == 'active' %}
+
+{% set gradient_by_category = {'set_menu':'purple','main_dishes':'red','side_dishes':'orange','drinks':'purple'} %}
+{% set gradient_by_item = {
+    'Meal for Three (3 pax)':'purple',
+    'Meal for Four (4 pax)':'green',
+    'Meal for Five (5 pax)':'darkred',
+    'Bowser\'s Pork Belly':'red',
+    'Toad\'s Tofu with Stir-fried Kimchi':'orange',
+    'Peach\'s Pork Belly Fried Rice':'pink',
+    'Mario\'s Stacked Nachos':'red',
+    'Not-Yoshi Dried Filefish':'green',
+    'Extra Sauce':'orange',
+    'Hangover Care Stick':'yellow',
+    'Water':'lightblue'
+} %}
+{% set image_style_by_item = {
+    'Extra Sauce':'--card-height:clamp(206px, calc(54.54 * var(--vw)), 643px);',
+    "Toad's Tofu with Stir-fried Kimchi":'--card-height:clamp(310px, calc(81.9 * var(--vw)), 966px);'
+} %}
+{% set figma_image_by_item = {
+    'Meal for Three (3 pax)':'figma_mario_allstar_set.png',
+    'Meal for Four (4 pax)':'figma_mario_party_set.png',
+    'Meal for Five (5 pax)':'figma_bowser_final_set.png',
+    "Bowser’s Pork Belly":'figma_bowser_pork_belly.png',
+    "Toad’s Tofu with Stir-fried Kimchi":'figma_toad_tofu_kimchi.png',
+    "Peach’s Pork Belly Fried Rice":'figma_peach_fried_rice.png',
+    "Mario’s Stacked Nachos":'figma_mario_red_nachos.png',
+    'Not-Yoshi Dried Filefish':'figma_not_yoshi_filefish.png',
+    'Extra Sauce':'figma_extra_sauce.png',
+    'Hangover Care Stick':'figma_hangover_stick.png',
+    'Water':'figma_oneup_water.png'
+} %}
+{% set fallback_cycle = ['purple', 'green', 'darkred', 'red', 'orange', 'pink', 'yellow', 'lightblue'] %}
+{% set beverage_items = menu_items_by_category.get('drinks', []) %}
+
+{% macro menu_card(item, category_key, idx=0) -%}
+<div class="m-menu-card order-menu-card"
+     data-item-id="{{ item.id }}"
+     data-gradient="{{ gradient_by_item.get(item.name_en, gradient_by_category.get(category_key, fallback_cycle[idx % fallback_cycle|length])) }}"
+     style="{{ image_style_by_item.get(item.name_en, '') }}">
+    <div class="m-menu-card-inner">
+        <div class="m-menu-card-deco"></div>
+        {% if figma_image_by_item.get(item.name_en) %}
+        <img class="m-menu-card-img m-menu-card-img-figma" src="/static/images/mario/menu/{{ figma_image_by_item.get(item.name_en) }}" alt="{{ item.name_kr }}">
+        {% elif item.image_filename %}
+        <img class="m-menu-card-img" src="/static/uploads/{{ item.image_filename }}" alt="{{ item.name_kr }}">
+        {% else %}
+        <img class="m-menu-card-img" src="/static/images/mario/item_illustration.png" alt="{{ item.name_kr }}">
+        {% endif %}
+        <div class="m-menu-card-overlay"></div>
+        <div class="m-menu-card-content">
+            <div class="m-menu-card-price"><span class="m-coin" aria-hidden="true"></span>{{ item.price|format_currency }}원</div>
+            {% if item.description %}
+            <div class="m-menu-card-desc">{{ item.description }}</div>
+            {% endif %}
+            <div class="m-menu-card-name">{{ item.name_kr }}</div>
+            {% if item.name_en %}
+            <div class="m-menu-card-name-en">{{ item.name_en }}</div>
+            {% endif %}
+            <div class="m-qty">
+                <button type="button" class="m-qty-btn" onclick="updateQuantity('{{ item.id }}', -1)" aria-label="수량 줄이기">
+                    <i class="bi bi-dash"></i>
+                </button>
+                <input type="number" id="quantity-{{ item.id }}" class="m-qty-value" value="0" min="0" readonly>
+                <button type="button" class="m-qty-btn" onclick="updateQuantity('{{ item.id }}', 1)" aria-label="수량 늘리기">
+                    <i class="bi bi-plus"></i>
+                </button>
             </div>
-            <div class="card-body">
-                <div class="row row-cols-1 {% if category_key != 'table' %}row-cols-md-2{% endif %} g-4"> {# Table charge items usually full width #}
-                    {% for item in items_in_category %}
-                    <div class="col">
-                        <div class="menu-card">
-                            <div class="row g-0">
-                                <div class="col-12 col-sm-4 menu-image-container">
-                                    {% if item.image_filename %}
-                                        <img src="/static/uploads/{{ item.image_filename }}" 
-                                             class="menu-image img-fluid" 
-                                             alt="{{ item.name_kr }}">
-                                    {% else %}
-                                    <div class="menu-image d-flex align-items-center justify-content-center bg-light img-fluid">
-                                        <i class="bi bi-image text-muted fs-1"></i>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-12 col-sm-8">
-                                    <div class="p-3">
-                                        <h5 class="mb-1">{{ item.name_kr }}</h5>
-                                        <small class="text-muted d-block mb-2">{{ item.name_en }}</small>
-                                        {% if item.description %}
-                                        <p class="menu-description">{{ item.description }}</p>
-                                        {% endif %}
-                                        <div class="d-flex justify-content-between align-items-center mt-auto">
-                                            <span class="price">{{ item.price|format_currency }}원</span> {# Use format_currency filter #}
-                                            <div class="quantity-controls">
-                                                <button type="button" 
-                                                        class="quantity-btn" 
-                                                        onclick="updateQuantity('{{ item.id }}', 1)">
-                                                    <i class="bi bi-plus"></i>
-                                                </button>
-                                                <input type="number" 
-                                                       id="quantity-{{ item.id }}" 
-                                                       class="quantity-input" 
-                                                       value="0" 
-                                                       min="0" 
-                                                       readonly>
-                                                <button type="button" 
-                                                        class="quantity-btn" 
-                                                        onclick="updateQuantity('{{ item.id }}', -1)">
-                                                    <i class="bi bi-dash"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+        </div>
+    </div>
+</div>
+{%- endmacro %}
+
+<div class="m-section-label">포장 이벤트</div>
+<div class="m-event-card" data-gradient="red">
+    <div class="m-event-card-inner">
+        <img class="m-event-img" src="/static/images/mario/main_banner.png" alt="포장 이벤트">
+        <div class="m-event-copy">
+            <div class="m-event-title">포장 시<br>소주 or 맥주<br>택 1개 무료!</div>
+            <div class="m-event-options">
+                <label class="m-event-option"><input type="radio" name="takeout_bonus" value="" checked> <span>선택 안 함</span></label>
+                <label class="m-event-option"><input type="radio" name="takeout_bonus" value="beer"> <span>맥주 <small>Beer</small></span></label>
+                <label class="m-event-option"><input type="radio" name="takeout_bonus" value="soju"> <span>소주 <small>Soju</small></span></label>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── 1인 1메뉴 배너 ── #}
+<div class="m-1per-banner">
+    <div class="m-1per-banner-inner">
+        <img class="m-1per-banner-img" src="/static/images/mario/banner_1per_menu.png" alt="1인 1 메인 메뉴">
+        <div class="m-1per-banner-copy">
+            <div class="m-1per-banner-title">1인 1 메인 메뉴<br>주문 필수!</div>
+            <div class="m-1per-banner-sub">One Main Dish<br>Required per Guest</div>
+        </div>
+    </div>
+</div>
+
+{% for category_key, items_in_category in menu_items_by_category.items() %}
+{% if items_in_category and category_key not in ['table', 'drinks'] %}
+
+<div class="m-section-label">
+    {% if category_key == 'set_menu' %}
+        세트 메뉴
+    {% elif category_key == 'main_dishes' %}
+        메인 요리
+    {% elif category_key == 'side_dishes' %}
+        음료 및 기타 메뉴
+    {% else %}
+        {{ category_display_names.get(category_key, category_key) }}
+    {% endif %}
+</div>
+
+{% if category_key == 'side_dishes' %}
+    {% for item in items_in_category if item.name_kr == '소스 추가' %}
+        {{ menu_card(item, category_key, loop.index0) }}
+    {% endfor %}
+
+    {% if beverage_items %}
+    <div class="m-menu-card m-beverage-card" data-gradient="purple" style="--card-height:clamp(620px, calc(144.87 * var(--vw)), 1708px);">
+        <div class="m-menu-card-inner">
+            <div class="m-menu-card-deco"></div>
+            <img class="m-menu-card-img m-menu-card-img-figma" src="/static/images/mario/menu/figma_rainbow_road.png" alt="무지개로드">
+            <div class="m-menu-card-overlay"></div>
+            <div class="m-menu-card-content m-beverage-content">
+                <div class="m-menu-card-price"><span class="m-coin" aria-hidden="true"></span>3,000원</div>
+                <div class="m-menu-card-desc">무지개빛 텐션 충전!<br>한잔으로 차원 이동하는 음료</div>
+                <div class="m-menu-card-name">무지개로드</div>
+                <div class="m-menu-card-name-en">Beverages</div>
+                <div class="m-beverage-options">
+                    {% for drink in beverage_items %}
+                    <div class="m-beverage-option-row order-menu-card" data-item-id="{{ drink.id }}">
+                        <div class="m-beverage-label">
+                            <strong>{{ drink.name_kr }}</strong>
+                            <small>{{ drink.name_en }}</small>
+                        </div>
+                        <div class="m-qty m-qty-small">
+                            <button type="button" class="m-qty-btn" onclick="updateQuantity('{{ drink.id }}', -1)" aria-label="{{ drink.name_kr }} 수량 줄이기"><i class="bi bi-dash"></i></button>
+                            <input type="number" id="quantity-{{ drink.id }}" class="m-qty-value" value="0" min="0" readonly>
+                            <button type="button" class="m-qty-btn" onclick="updateQuantity('{{ drink.id }}', 1)" aria-label="{{ drink.name_kr }} 수량 늘리기"><i class="bi bi-plus"></i></button>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-        {% endif %}
-        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% for item in items_in_category if item.name_kr != '소스 추가' %}
+        {{ menu_card(item, category_key, loop.index0 + 10) }}
+    {% endfor %}
+{% else %}
+    {% for item in items_in_category %}
+        {{ menu_card(item, category_key, loop.index0) }}
+    {% endfor %}
+{% endif %}
+
+{% endif %}
+{% endfor %}
+
+{# ── 주문 내역 (INLINE, NOT fixed at bottom) ── #}
+<div class="m-section-label m-order-summary-label">주문 내역</div>
+
+<div class="m-cart-inline" id="order-cart">
+    {# ── 총 금액 (red gradient card) ── #}
+    <div class="m-cart-total-card">
+        <div class="m-cart-total-row">
+            <span class="m-cart-total-label">총 금액</span>
+            <span class="m-cart-total-value"><span class="m-coin" aria-hidden="true"></span><span id="total-amount">0원</span></span>
+        </div>
+        <span id="summary-count" class="m-cart-count">0</span>
     </div>
 
-    <div class="col-md-4">
-        <div class="card sticky-top order-summary-card" style="top: 20px;">
-            <div class="card-header header-order-summary">
-                <h3 class="mb-0">
-                    <img src="/static/images/cart.png" class="header-icon me-2" alt="주문내역">주문 내역
-                </h3>
-            </div>
-            <div class="card-body">
-                <div id="order-summary">
-                    <!-- 주문 내역이 여기에 동적으로 추가됩니다 -->
-                </div>
-                <hr>
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">총 금액</h4>
-                    <h4 class="mb-0" id="total-amount">0원</h4>
-                </div>
-                <button type="button" 
-                        class="btn btn-primary w-100" 
-                        onclick="submitOrder()" 
-                        id="submit-order-btn" 
-                        disabled>
-                    <i class="bi bi-check-circle me-2"></i>주문하기
-                </button>
-            </div>
+    {# ── 주문 항목 (white cards) ── #}
+    <div class="m-cart-body" id="order-summary">
+        <div class="order-summary-empty">
+            <i class="bi bi-bag"></i>
+            <span>아직 담은 메뉴가 없습니다.</span>
         </div>
     </div>
 </div>
 
-<!-- 데이터 속성으로 필요한 정보 전달 -->
+{# ── 쿠폰 입력 ── #}
+<div class="m-coupon-card">
+    <div class="m-coupon-inner">
+        <label class="m-coupon-label" for="coupon-code"><i class="bi bi-ticket-perforated"></i> 쿠폰 코드</label>
+        <div class="m-coupon-row">
+            <input type="text" id="coupon-code" class="m-coupon-input" placeholder="SM-XXXX-XXXX" maxlength="12" autocomplete="off" autocapitalize="characters">
+        </div>
+        <div id="coupon-message" class="small mt-1" style="display:none;"></div>
+    </div>
+</div>
+
+{# ── 주문하기 버튼 (white card, inline at bottom) ── #}
+<div class="m-order-btn-card">
+    <button type="button" class="m-order-submit-btn" onclick="submitOrder()" id="submit-order-btn" disabled>
+        주문하기
+    </button>
+</div>
+
+{# ── 세션 만료 시 오버레이 (JS 제어) ── #}
+<div id="session-expired-overlay">
+    <div class="m-card m-expired-card m-expired-modal">
+        <h3 class="m-card-heading">이용 시간이 종료되었습니다</h3>
+        <p class="m-card-subtext">다시 닉네임을 입력해주세요.</p>
+        <a class="m-btn" href="/order?table={{ table_id }}" style="display:inline-block;width:auto;padding:12px 28px;">
+            <span class="m-btn-title" style="font-size:1.2rem;">다시 입장하기</span>
+        </a>
+    </div>
+</div>
+
+{# ── Footer disclaimer text (#a5a5a5, 36px) ── #}
+<p class="m-menu-footer-note">메뉴 이미지는 AI로 제작된 참고용 이미지로, 실제 제공되는 음식과 차이가 있을 수 있습니다.</p>
+
+{% endif %}
+
+{# ── 플로팅 장바구니 뱃지 (JS 제어) — 아이템 담으면 하단에 나타남 ── #}
+<button id="floating-cart" onclick="scrollToCart()" aria-label="장바구니 보기" type="button">
+    <span class="fc-count" id="fc-count">0</span>
+    <span class="fc-label">주문 내역 보기</span>
+    <span class="fc-total" id="fc-total">0원</span>
+</button>
+
+{# ── 데이터 속성으로 필요한 정보 전달 (order.js 사용) ── #}
 <div id="menu-data" style="display: none;" data-menu='{{ menu_item_details_for_js|tojson }}'></div>
 <div id="table-data" style="display: none;" data-table-id="{{ table_id }}"></div>
+{% endblock %}
 
-<!-- 외부 JavaScript 파일 로드 -->
+{% block extra_js %}
 <script src="/static/js/order.js"></script>
-{% endblock %} 
+{% endblock %}

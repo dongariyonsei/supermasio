@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 
 {% block title %}테이블 현황{% endblock %}
 
@@ -26,6 +26,9 @@
                     </a>
                     <a href="/admin/waiting" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-clock me-1"></i>웨이팅 관리
+                    </a>
+                    <a href="/admin/coupons" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-ticket-perforated me-1"></i>쿠폰 관리
                     </a>
                     <a href="/admin/menu" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-menu-button-wide me-1"></i>메뉴 관리
@@ -64,6 +67,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/admin/waiting">
                         <i class="bi bi-clock me-2"></i>웨이팅 관리
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/coupons">
+                        <i class="bi bi-ticket-perforated me-2"></i>쿠폰 관리
                     </a>
                 </li>
                 <li class="nav-item">
@@ -179,7 +187,19 @@
                             <i class="bi bi-person-circle me-1"></i>{{ table['nickname'] }}
                         </p>
                         {% endif %}
-                        
+
+                        {% if table['session_status'] == 'active' or table['session_status'] == 'expiring_soon' %}
+                        <p class="mb-1 small {{ 'text-danger' if table['session_status'] == 'expiring_soon' else 'text-success' }}"
+                           data-expires="{{ table['expires_at'] or '' }}">
+                            <i class="bi bi-clock me-1"></i>
+                            <span class="remaining-label">
+                            {% set m = (table['remaining_seconds'] // 60)|int %}
+                            {% set s = (table['remaining_seconds'] % 60)|int %}
+                            {{ '%02d:%02d'|format(m, s) }}
+                            </span>
+                        </p>
+                        {% endif %}
+
                         <div class="mb-2">
                             <small class="text-muted d-block">최근 주문:</small>
                             {% if table['latest_order_time'] %}
@@ -395,12 +415,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('tableSearch');
     const statusFilter = document.getElementById('statusFilter');
     const sortOrder = document.getElementById('sortOrder');
-    const tableCards = document.querySelectorAll('.table-card');
 
     function filterAndSort() {
         const searchTerm = searchInput.value.toLowerCase();
         const status = statusFilter.value;
         const sort = sortOrder.value;
+        // Re-query every time so DOM swaps don't leave stale references
+        const tableCards = document.querySelectorAll('.table-card');
 
         // 필터링된 카드들
         let visibleCards = Array.from(tableCards).filter(card => {
@@ -477,20 +498,56 @@ document.addEventListener('DOMContentLoaded', function() {
     statusFilter.addEventListener('change', filterAndSort);
     sortOrder.addEventListener('change', filterAndSort);
 
-    // 실시간 업데이트를 위한 WebSocket 연결
-    if (typeof window.websocketConnection === 'undefined') {
+    // 잔여 시간 카운트다운
+    function updateCountdowns() {
+        document.querySelectorAll('[data-expires]').forEach(el => {
+            const iso = el.dataset.expires;
+            if (!iso) return;
+            const diff = Math.max(0, Math.floor((new Date(iso) - Date.now()) / 1000));
+            const m = Math.floor(diff / 60).toString().padStart(2, '0');
+            const s = (diff % 60).toString().padStart(2, '0');
+            el.querySelector('.remaining-label').textContent = `${m}:${s}`;
+            el.className = el.className.replace(/text-(success|danger)/, diff <= 300 ? 'text-danger' : 'text-success');
+        });
+    }
+    setInterval(updateCountdowns, 1000);
+
+    // Real-time partial update — no full page reload
+    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled'];
+    let wsRefreshing = false, wsPending = false;
+
+    async function refreshTableBoard() {
+        if (wsRefreshing) { wsPending = true; return; }
+        wsRefreshing = true;
+        try {
+            const html = await (await fetch(window.location.href, { headers: { 'X-Requested-With': 'fetch' } })).text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const fresh = doc.getElementById('tableGrid');
+            const cur   = document.getElementById('tableGrid');
+            if (fresh && cur) cur.replaceWith(fresh);
+            // Refresh summary stats
+            ['onlineCount','pendingTotal','cookingTotal','completedTotal','cancelledTotal','activeTablesCount','todayCompletedTotal','totalOrdersSum','totalRevenue'].forEach(id => {
+                const a = doc.getElementById(id), b = document.getElementById(id);
+                if (a && b) b.textContent = a.textContent;
+            });
+            // Re-attach filter/sort listeners and restart countdowns
+            filterAndSort();
+            updateCountdowns();
+        } catch(e) { /* retry on next event */ }
+        wsRefreshing = false;
+        if (wsPending) { wsPending = false; refreshTableBoard(); }
+    }
+
+    if (typeof window.tablesWs === 'undefined') {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        window.websocketConnection = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
-        
-        window.websocketConnection.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'new_order' || data.type === 'order_cancelled' || data.type === 'item_completed') {
-                // 페이지 새로고침 대신 부분 업데이트 (5초 후)
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            }
+        window.tablesWs = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
+        window.tablesWs.onmessage = function(event) {
+            let data; try { data = JSON.parse(event.data); } catch(e) { return; }
+            if (REFRESH_TYPES.includes(data.type)) refreshTableBoard();
+        };
+        window.tablesWs.onclose = function() {
+            window.tablesWs = undefined;
+            setTimeout(() => {}, 3000); // will reconnect on next event
         };
     }
 });

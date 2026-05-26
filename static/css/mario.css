@@ -1,237 +1,258 @@
-/* ═══════════════════════════════════════════════════════════════
-   슈퍼 마시오 — Figma 디자인 테마 (고객 화면)
-   팔레트/타이포/컴포넌트는 Figma "슈퍼마시오 디자인" 파일 기준.
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   슈퍼 마시오 — Figma-Exact Design System CSS v5
+   Figma design: 1179px base width → responsive via clamp()/vw
+   Primary font: SeoulNamsan.  Mobile-first.
+   ═══════════════════════════════════════════════════════════════════════ */
 
-:root {
-    --m-red:        #d70a0a;   /* 헤더/버튼 메인 레드 */
-    --m-red-bright: #ff3333;   /* 그라데이션 상단 */
-    --m-red-accent: #ff2424;   /* 카드 테두리/포인트 */
-    --m-card-pink:  #fff5f5;   /* 연분홍 카드 배경 */
-    --m-bg:         #ededed;   /* 페이지 배경 */
-    --m-ink:        #3b3b3b;   /* 본문 진한 글자 */
-    --m-muted:      #666666;   /* 보조 글자 */
-    --m-white:      #ffffff;
-    --m-radius:     22px;
-    --m-radius-lg:  28px;
-    --m-shadow:     0 3px 21px -4px rgba(0,0,0,0.25);
-    --m-shadow-card:0 0 20px 0 rgba(0,0,0,0.18);
-    --m-maxw:       520px;
-    --m-display:    'SeoulNamsan', 'Black Han Sans', 'Jua', 'Sunflower', sans-serif;
-    --m-body:       'SeoulNamsan', 'Jua', 'Nanum Gothic', sans-serif;
+/* ───────────────────────  FONT FACE  ─────────────────────── */
+@font-face {
+    font-family: 'SeoulNamsan';
+    src: url('/static/fonts/SeoulNamsan.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
 }
 
-/* ── 로컬에 설치된 서울남산체가 있으면 우선 사용 (없으면 Google fallback) ── */
+/* ───────────────────────  DESIGN TOKENS  ─────────────────────── */
+:root {
+    --m-red:              #d60a0a;
+    --m-red-bright:       #ff3333;
+    --m-red-accent:       #ff2424;
+    --m-red-item:         #eb1f1f;
+    --m-yellow-accent:    #f8ab00;
+    --m-card-pink:        #fff4f4;
+    --m-bg:               #ececec;
+    --m-ink:              #3a3a3a;
+    --m-muted:            #656565;
+    --m-white:            #ffffff;
+    --m-placeholder:      #9d9d9d;
 
-* { box-sizing: border-box; }
+    --m-maxw:           520px;
+    /* Scaling unit: 1vw below the 520px column, frozen at the 520px value above
+       it. Keeps phones (≤520px) pixel-identical while stopping desktop overflow. */
+    --vw:               min(1vw, calc(var(--m-maxw) * 0.01));
+    --m-radius:         37px;
+    --m-radius-btn:     39px;
+    --m-radius-sm:      16px;
+    --m-shadow:         0 3px 21px -4px rgba(0,0,0,0.25);
+    --m-font:           'SeoulNamsan', sans-serif;
+}
 
+/* ───────────────────────  RESET & BASE  ─────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 body.mario-body {
     margin: 0;
     background: var(--m-bg);
     color: var(--m-ink);
-    font-family: var(--m-body);
-    -webkit-font-smoothing: antialiased;
-}
-
-/* ─────────────────────────────  헤더  ───────────────────────────── */
-.mario-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: var(--m-red);
-    box-shadow: 0 4px 18px rgba(82,82,82,0.45);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 18px;
-    min-height: 60px;
-}
-.mario-header .mh-logo img {
-    height: 38px;
-    display: block;
-}
-.mario-header .mh-title {
-    flex: 1;
-    text-align: center;
-    margin: 0;
-    color: #fff;
-    font-family: var(--m-display);
+    font-family: var(--m-font);
     font-weight: 400;
-    font-size: clamp(1.4rem, 6vw, 2rem);
-    letter-spacing: 0.5px;
-    text-shadow: 0 3px 4px rgba(0,0,0,0.22);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    min-height: 100dvh;
 }
-.mario-header .mh-menu {
-    background: none;
-    border: 0;
-    color: #fff;
-    font-size: 28px;
-    line-height: 1;
-    padding: 4px;
-    cursor: pointer;
-}
-/* 헤더 드롭다운(<details>) */
-.mh-nav { position: relative; }
-.mh-nav > summary { list-style: none; }
-.mh-nav > summary::-webkit-details-marker { display: none; }
-.mh-nav[open] > summary .mh-menu { opacity: 0.7; }
-.mh-nav-panel {
-    position: absolute;
-    right: 0;
-    top: 110%;
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: var(--m-shadow);
-    min-width: 160px;
-    padding: 6px;
-    z-index: 60;
-}
-.mh-nav-panel a {
-    display: block;
-    padding: 12px 16px;
-    color: var(--m-ink);
-    text-decoration: none;
-    font-weight: 700;
-    border-radius: 10px;
-}
-.mh-nav-panel a:hover { background: var(--m-card-pink); color: var(--m-red); }
+a { color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+button, input, select, textarea { font: inherit; }
 
-/* ─────────────────────────────  레이아웃  ───────────────────────────── */
+/* ───────────────────────  LAYOUT  ─────────────────────── */
 .mario-main {
     max-width: var(--m-maxw);
     margin: 0 auto;
-    padding: 16px 16px 48px;
+    padding: 16px 16px 32px;
 }
 
-/* 흰 카드 패널 */
+/* ───────────────────────  CARD  ─────────────────────── */
 .m-card {
     background: var(--m-white);
-    border-radius: var(--m-radius-lg);
+    border-radius: var(--m-radius);
     box-shadow: var(--m-shadow);
     padding: 24px 20px;
 }
 
-/* 화면 상단 부스/네비 서브바 (메뉴/웨이팅/완료 화면 공통) */
-.m-subnav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: var(--m-shadow);
-    padding: 8px 12px;
-    margin-bottom: 16px;
-    font-size: clamp(10px, 3vw, 12px);
-    color: var(--m-muted);
-    font-weight: 700;
-    overflow: hidden;
-}
-.m-subnav .m-subnav-icon {
-    width: 38px; height: 38px;
-    border-radius: 12px;
-    background: #fff;
-    box-shadow: var(--m-shadow-card);
-    display: grid; place-items: center;
-    flex: 0 0 auto;
-}
-.m-subnav .m-subnav-icon img { width: 24px; height: 24px; object-fit: contain; }
-.m-subnav .m-subnav-col { line-height: 1.35; min-width: 0; flex: 1 1 auto; }
-.m-subnav .m-subnav-col.right { text-align: right; }
-.m-subnav .m-subnav-col strong { color: var(--m-ink); display: block; }
-
-/* 섹션 배너 (그라데이션 레드) */
-.m-banner {
-    background: linear-gradient(180deg, var(--m-red-bright) 0%, var(--m-red) 100%);
-    border-radius: 18px;
-    box-shadow: var(--m-shadow);
-    color: #fff;
-    text-align: center;
-    font-family: var(--m-display);
-    font-weight: 400;
-    font-size: clamp(1.5rem, 6vw, 2.1rem);
-    padding: 16px;
-    text-shadow: 0 4px 4px rgba(0,0,0,0.15);
-    margin: 18px 0;
-}
-
-/* 레드 그라데이션 버튼 (홈/CTA) */
+/* ───────────────────────  BUTTONS  ─────────────────────── */
 .m-btn {
     display: block;
     width: 100%;
-    border: 2px solid #fff;
-    border-radius: 18px;
+    border: 2px solid var(--m-white);
+    border-radius: var(--m-radius-btn);
     background: linear-gradient(180deg, var(--m-red-bright) 0%, var(--m-red) 100%);
     box-shadow: var(--m-shadow);
-    color: #fff;
+    color: var(--m-white);
     text-decoration: none;
     text-align: center;
-    font-family: var(--m-display);
+    font-family: var(--m-font);
+    font-weight: 400;
     padding: 18px 16px;
     cursor: pointer;
     transition: transform 0.12s ease, filter 0.12s ease;
+    position: relative;
+    overflow: hidden;
 }
 .m-btn:hover { filter: brightness(1.05); }
-.m-btn:active { transform: translateY(1px); }
+.m-btn:active { transform: translateY(1px); filter: brightness(0.98); }
 .m-btn .m-btn-title {
     display: block;
-    color: #fff;
-    font-size: clamp(1.5rem, 6.5vw, 2.1rem);
+    color: var(--m-white);
+    font-size: clamp(1.5rem, calc(6.5 * var(--vw)), 2.1rem);
     line-height: 1.2;
     text-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
-.m-btn .m-btn-sub {
-    display: block;
-    margin-top: 4px;
-    font-family: var(--m-body);
-    font-weight: 700;
-    font-size: clamp(0.8rem, 3.4vw, 1rem);
-    color: rgba(255,255,255,0.92);
-}
-.m-btn:disabled, .m-btn.is-disabled {
+.m-btn:disabled {
     background: #c9c4bd;
-    border-color: #fff;
-    filter: none;
+    border-color: var(--m-white);
     cursor: not-allowed;
+    pointer-events: none;
 }
 
-/* 보조(흰 배경) 버튼 */
-.m-btn-outline {
-    background: #fff;
-    color: var(--m-red);
-    border: 2px solid var(--m-red);
-}
-.m-btn-outline .m-btn-title { color: var(--m-red); text-shadow: none; }
+/* ══════════════════════════════════════════════════════════════════
+   HOME PAGE — Figma-exact (1179px base)
+   Hero: 856×552  |  Card: 1081×1404 r=37  |  Btn-group: 920×540 r=39
+   Title/Prompt: 58px #3a3a3a  |  Btn1 txt: 36px  |  Btn2 txt: 70px
+   Gradient: #ff3333 → #d60a0a  |  All px → clamp()/vw responsive
+   ══════════════════════════════════════════════════════════════════ */
 
-/* ─────────────────────────────  홈 화면  ───────────────────────────── */
-.home-card { text-align: center; padding: 28px 22px 30px; }
-.home-logo {
-    width: min(78%, 360px);
-    height: auto;
-    margin: 6px auto 22px;
+/* ── Hero/logo rectangle: 856×552 in Figma at x=162 inside 1081px card ── */
+.home-hero-frame {
     display: block;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.18));
+    width: min(79.2%, 856px);
+    aspect-ratio: 856 / 552;
+    margin: 0 auto clamp(-6px, calc(-0.4 * var(--vw)), -2px);
+    border-radius: clamp(10px, calc(3.14 * var(--vw)), 37px);
+    overflow: hidden;
 }
-.home-welcome {
+.home-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* ── Title: 슈퍼 마시오에 오신 것을 환영합니다. — 58px #3a3a3a ── */
+.home-welcome-text {
+    font-family: var(--m-font);
+    font-size: clamp(1.1rem, calc(4.92 * var(--vw)), 3.625rem);  /* 58px / 16 = 3.625rem, 58/1179=calc(4.92 * var(--vw)) */
     color: var(--m-ink);
-    font-family: var(--m-display);
-    font-weight: 400;
-    font-size: clamp(1.15rem, 4.6vw, 1.6rem);
-    line-height: 1.45;
-    margin: 0 0 26px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    text-align: center;
+    line-height: 1.43;  /* Figma 83/58 */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.25);  /* Figma */
+    margin: 0 0 clamp(4px, calc(0.8 * var(--vw)), 10px);
     word-break: keep-all;
 }
-.home-actions { display: grid; gap: 18px; }
 
-/* ─────────────────────────────  테이블 선택 화면  ───────────────────────────── */
+/* ── White card: 1081×1404, r=37, shadow ── */
+.home-action-card {
+    background: var(--m-white);
+    border-radius: clamp(10px, calc(3.14 * var(--vw)), 37px);  /* 37/1179=calc(3.14 * var(--vw)) */
+    box-shadow: 0 clamp(2px, calc(0.42 * var(--vw)), 5px) clamp(14px, calc(2.97 * var(--vw)), 35px) clamp(-4px, calc(-0.85 * var(--vw)), -3px) rgba(0,0,0,0.25);
+    padding: 0 clamp(12px, calc(2.54 * var(--vw)), 30px) clamp(16px, calc(3.39 * var(--vw)), 40px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ── Button group: 920×540, r=39 ── */
+.home-actions {
+    display: grid;
+    gap: clamp(10px, calc(2.12 * var(--vw)), 25px);  /* ~25px gap at 1179px */
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* ── Gradient buttons: #ff3333 → #d60a0a, r=39 ── */
+.home-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    border: 2px solid var(--m-white);
+    border-radius: clamp(10px, calc(3.31 * var(--vw)), 39px);  /* 39/1179=calc(3.31 * var(--vw)) */
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    box-shadow: 0 clamp(2px, calc(0.42 * var(--vw)), 5px) clamp(14px, calc(2.97 * var(--vw)), 35px) clamp(-4px, calc(-0.85 * var(--vw)), -3px) rgba(0,0,0,0.25);
+    color: #ffffff;
+    text-decoration: none;
+    text-align: center;
+    font-family: var(--m-font);
+    font-weight: 400;
+    aspect-ratio: 920 / 256;  /* Figma: both buttons 920×256, equal height */
+    padding: clamp(8px, calc(2 * var(--vw)), 24px) clamp(10px, calc(2.12 * var(--vw)), 25px);
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+.home-btn:active { transform: translateY(1px); filter: brightness(0.98); }
+
+/* ── Button 1 line 1: 테이블 선택하기 — 70px white (Figma line1) ── */
+.home-btn-line1 {
+    display: block;
+    font-size: clamp(1.1rem, calc(5.94 * var(--vw)), 4.375rem);  /* 70/1179=calc(5.94 * var(--vw)), 70px=4.375rem — matches 웨이팅 등록하기 */
+    line-height: 1.334;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* ── Button 1 line 2: 착석 후 선택해주세요 — 36px white ── */
+.home-btn-line2 {
+    display: block;
+    margin-top: clamp(2px, calc(0.42 * var(--vw)), 5px);
+    font-size: clamp(0.85rem, calc(3.05 * var(--vw)), 2.25rem);  /* same 36px as line1 */
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+/* ── Button 2: 웨이팅 등록하기 — 70px white ── */
+.home-btn-big {
+    display: block;
+    font-size: clamp(1.1rem, calc(5.94 * var(--vw)), 4.375rem);  /* 70/1179=calc(5.94 * var(--vw)), 70px=4.375rem */
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* ── Prompt: 이용하실 방식을 선택해주세요. — 58px #3a3a3a ── */
+.home-prompt-text {
+    font-family: var(--m-font);
+    font-size: clamp(1.1rem, calc(4.92 * var(--vw)), 3.625rem);  /* 58px = 3.625rem */
+    color: var(--m-ink);
+    text-align: center;
+    line-height: 1.43;  /* Figma 83/58 */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.25);  /* Figma */
+    margin: 0 0 clamp(18px, calc(3 * var(--vw)), 36px);  /* sits above buttons */
+    word-break: keep-all;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TABLE SELECT PAGE
+   ══════════════════════════════════════════════════════════════════ */
+/* ── Section banner: red gradient pill 1081×145 r=37, white 70px (Figma 4076:528) ── */
+.m-banner {
+    height: clamp(64px, calc(12.3 * var(--vw)), 145px);
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    border-radius: clamp(18px, calc(3.14 * var(--vw)), 37px);
+    box-shadow: 0 3px 21px -4px rgba(0,0,0,0.25);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-family: var(--m-font);
+    font-size: clamp(2rem, calc(5.94 * var(--vw)), 70px);
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.15);
+    margin: clamp(18px, calc(3.82 * var(--vw)), 45px) 0 clamp(12px, calc(3.73 * var(--vw)), 44px);
+    padding: 0 16px;
+}
+
+/* White rounded panel behind the table buttons (Figma 4076:509). */
+.table-panel {
+    background: #ffffff;
+    border-radius: var(--m-radius);
+    box-shadow: var(--m-shadow);
+    padding: clamp(16px, calc(4.2 * var(--vw)), 46px);
+}
 .table-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: clamp(10px, calc(4.2 * var(--vw)), 46px);  /* Figma gap 46/1083 */
 }
-.table-card-link { text-decoration: none; }
+.table-card-link { text-decoration: none; display: block; }
 .table-card-m {
     background: var(--m-card-pink);
     border: 2px solid var(--m-red-accent);
@@ -244,65 +265,199 @@ body.mario-body {
     gap: 10px;
     transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.table-card-m:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(215,10,10,0.22); }
-.table-card-m img { width: 56px; height: 52px; object-fit: contain; }
+.table-card-m:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(215, 10, 10, 0.22);
+}
+/* Figma: image 146×135 ≈ 50% of 291px card */
+.table-card-m img { width: 50%; max-width: 146px; height: auto; aspect-ratio: 146 / 135; object-fit: contain; }
 .table-card-m .tc-label {
-    font-family: var(--m-display);
-    font-weight: 400;
+    font-family: var(--m-font);
     color: var(--m-red-accent);
-    font-size: clamp(1rem, 4.5vw, 1.4rem);
+    /* Figma 48px on 291px card ≈ 16.5% */
+    font-size: clamp(1.1rem, calc(5.5 * var(--vw)), 3rem);
     line-height: 1;
+    white-space: nowrap;
 }
-@media (max-width: 360px) {
-    .table-grid { gap: 10px; }
-    .table-card-m { padding: 12px 4px 10px; }
+.table-card-m.is-occupied {
+    opacity: 0.55;
+    pointer-events: none;
+    filter: grayscale(0.3);
 }
 
-/* ─────────────────────────────  웨이팅 등록 화면  ───────────────────────────── */
-.m-info-card {
+/* ══════════════════════════════════════════════════════════════════
+   WAITING PAGE
+   Figma: 1179px base.  Intro 58px, banner 1081×145 r=37,
+   card 1081×1633 r=37, fields 986×223 (input 986×132 r=37 #fff4f4),
+   submit 620×184 r=39.  All responsive via clamp()/vw.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Intro text: 58px SeoulNamsan #3a3a3a centered ── */
+.m-waiting-intro {
     text-align: center;
-    padding: 22px 20px;
-    margin-bottom: 16px;
+    margin-bottom: clamp(12px, calc(1.7 * var(--vw)), 20px);
+    padding: 0 clamp(8px, calc(4.1 * var(--vw)), 48px);
 }
-.m-info-card h2 {
-    font-family: var(--m-display);
-    color: var(--m-red);
-    font-size: clamp(1.3rem, 5.4vw, 1.8rem);
-    margin: 0 0 10px;
+.m-waiting-intro-main,
+.m-waiting-intro-sub {
+    font-family: var(--m-font);
+    /* 58px @ 1179px → clamp(1.8rem, calc(4.9 * var(--vw)), 3.625rem) */
+    font-size: clamp(1.8rem, calc(4.9 * var(--vw)), 3.625rem);
+    color: #3a3a3a;
+    line-height: 1.4;
+    margin: 0;
+    word-break: keep-all;
 }
-.m-info-card p { color: var(--m-muted); font-weight: 700; margin: 0; line-height: 1.5; }
+.m-waiting-intro-main {
+    margin-bottom: clamp(2px, calc(0.4 * var(--vw)), 8px);
+}
 
-.m-form { display: grid; gap: 18px; }
-.m-field { display: grid; gap: 8px; }
+/* ── Outer card: 1081×1633 r=37, white bg (acts as image area container) ── */
+.m-waiting-card {
+    overflow: hidden;
+    padding: 0;
+    /* r=37 → clamp */
+    border-radius: clamp(20px, calc(3.1 * var(--vw)), 37px);
+}
+
+/* ── Red gradient banner: 1081×145 r=37 (#ff3333→#d60a0a), "웨이팅 등록" 70px white ── */
+.m-waiting-card-header {
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    text-align: center;
+    font-family: var(--m-font);
+    /* 70px @ 1179px → clamp(1.8rem, calc(5.9 * var(--vw)), 4.375rem) */
+    font-size: clamp(1.8rem, calc(5.9 * var(--vw)), 4.375rem);
+    color: #ffffff;
+    /* height 145px @ 1179px → clamp(40px, calc(12.3 * var(--vw)), 145px) */
+    padding: clamp(12px, calc(3.5 * var(--vw)), 38px) 16px;
+    border-radius: clamp(20px, calc(3.1 * var(--vw)), 37px) clamp(20px, calc(3.1 * var(--vw)), 37px) 0 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    line-height: 1.2;
+}
+
+/* ── White form area (card body below the banner) ── */
+.m-waiting-form-area {
+    background: #ffffff;
+    /* horizontal padding: (1179-986)/2 = 96.5px → clamp(16px, calc(8.2 * var(--vw)), 96px) */
+    padding: clamp(16px, calc(8.2 * var(--vw)), 96px);
+    /* vertical padding to approximate the 1633 total card height minus banner */
+    padding-top: clamp(20px, calc(3.4 * var(--vw)), 40px);
+    padding-bottom: clamp(24px, calc(4.1 * var(--vw)), 48px);
+    border-radius: 0 0 clamp(20px, calc(3.1 * var(--vw)), 37px) clamp(20px, calc(3.1 * var(--vw)), 37px);
+}
+
+/* ── Form grid ── */
+.m-form {
+    display: grid;
+    /* gap between 223px groups: ~15px @ 1179px */
+    gap: clamp(10px, calc(1.3 * var(--vw)), 15px);
+    padding: 0;
+    max-width: 986px;
+    margin: 0 auto;
+}
+
+/* ── Field group: label + input, total ~223px height ── */
+.m-field {
+    display: flex;
+    flex-direction: column;
+    /* gap between label (58px line) and input (132px) ≈ 33px */
+    gap: clamp(6px, calc(2.8 * var(--vw)), 18px);
+}
+
 .m-field label {
-    font-family: var(--m-display);
-    color: var(--m-ink);
-    font-size: clamp(1.05rem, 4.4vw, 1.35rem);
-    text-align: center;
+    font-family: var(--m-font);
+    color: #3b3b3b;
+    /* 58px @ 1179px */
+    font-size: clamp(1.3rem, calc(4.9 * var(--vw)), 3.625rem);
+    line-height: 1.2;
+    text-align: center;  /* Figma: labels centered */
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);  /* Figma */
+    word-break: keep-all;
 }
-.m-input, .m-select {
+
+/* ── Input / Select: 986×132 r=37, fill #fff5f5, 2px #ff2424 border ── */
+.m-input,
+.m-select {
     width: 100%;
-    border: 2px solid var(--m-red-accent);
-    border-radius: 16px;
-    background: var(--m-card-pink);
-    color: var(--m-ink);
-    font-family: var(--m-body);
-    font-weight: 700;
-    font-size: 1.05rem;
-    padding: 14px 18px;
-    text-align: center;
+    /* 132px height @ 986px width → clamp(44px, calc(11.2 * var(--vw)), 132px) */
+    height: clamp(44px, calc(11.2 * var(--vw)), 132px);
+    border: 2px solid var(--m-red-accent);  /* Figma: 2px #ff2424 */
+    border-radius: clamp(16px, calc(3.1 * var(--vw)), 37px);
+    background: #fff5f5;
+    box-shadow: var(--m-shadow);  /* Figma 0 3px 21px -4px rgba(0,0,0,0.25) */
+    color: #3a3a3a;
+    font-family: var(--m-font);
+    /* 58px placeholder/entry text @ 1179px */
+    font-size: clamp(1.1rem, calc(4.9 * var(--vw)), 3.625rem);
+    /* vertical center the text in the tall input */
+    padding: 0 clamp(16px, calc(3.2 * var(--vw)), 38px);
+    text-align: center;  /* Figma: input text centered */
     appearance: none;
     outline: none;
+    transition: background 0.15s;
+    line-height: 1;
 }
-.m-input::placeholder { color: #c79a9a; }
-.m-input:focus, .m-select:focus { border-color: var(--m-red); background: #fff; }
+.m-input::placeholder {
+    color: #9d9d9d;
+}
+.m-input::placeholder[value="010-0000-0000" i],
+.m-input[type="tel"]::placeholder {
+    color: #9c9c9c;
+}
+.m-input:focus,
+.m-select:focus {
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(214, 10, 10, 0.10);
+}
+
+/* ── Select dropdown: polygon triangle #9d9d9d ── */
 .m-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23d70a0a'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    color: #3a3a3a;
+    cursor: pointer;
+    /* Figma polygon triangle in #9d9d9d */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16' fill='%239d9d9d'%3E%3Cpolygon points='4,2 20,2 12,14'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 18px center;
-    background-size: 16px;
+    background-position: right clamp(12px, calc(2.5 * var(--vw)), 30px) center;
+    background-size: clamp(12px, calc(2.5 * var(--vw)), 28px);
+    padding-right: clamp(36px, calc(5.5 * var(--vw)), 64px);
 }
-.m-submit { margin-top: 6px; }
+.m-select:invalid,
+.m-select option[value=""] {
+    color: #9c9c9c;
+}
+
+/* ── Submit button: 620×184 r=39, grad #ff3333→#d60a0a, "웨이팅 등록하기" 70px white ── */
+.m-waiting-submit-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: clamp(8px, calc(1.7 * var(--vw)), 20px);
+}
+.m-submit { /* reset generic */ margin-top: 0; }
+.m-waiting-submit {
+    /* 620px @ 1179px → clamp(260px, calc(52.6 * var(--vw)), 620px) */
+    max-width: clamp(260px, calc(52.6 * var(--vw)), 620px);
+    width: 100%;
+    /* 184px height → clamp(60px, calc(15.6 * var(--vw)), 184px) */
+    height: clamp(60px, calc(15.6 * var(--vw)), 184px);
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: clamp(18px, calc(3.3 * var(--vw)), 39px);
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.m-waiting-submit .m-btn-title {
+    /* 70px @ 1179px → clamp(1.6rem, calc(5.9 * var(--vw)), 4.375rem) */
+    font-size: clamp(1.6rem, calc(5.9 * var(--vw)), 4.375rem);
+    line-height: 1.2;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* ── Success alert ── */
 .m-alert-success {
     background: var(--m-card-pink);
     border: 2px solid var(--m-red-accent);
@@ -311,4 +466,931 @@ body.mario-body {
     text-align: center;
     padding: 18px;
     font-weight: 700;
+    margin: 16px;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   ORDER / MENU PAGE — strict Figma mobile conversion
+   Target frame: 1179px wide. Runtime width scales linearly.
+   ══════════════════════════════════════════════════════════════════ */
+
+.mario-main {
+    padding: clamp(14px, calc(4.33 * var(--vw)), 51px) clamp(14px, calc(4.33 * var(--vw)), 51px) 32px;
+}
+
+.m-section-label {
+    height: clamp(64px, calc(12.3 * var(--vw)), 145px);
+    background: #fff;
+    border-radius: clamp(18px, calc(3.14 * var(--vw)), 37px);
+    box-shadow: 0 3px 21px -4px rgba(0,0,0,0.25);
+    color: #ff2424;
+    display: grid;
+    place-items: center;
+    font-family: var(--m-font);
+    font-size: clamp(2rem, calc(5.94 * var(--vw)), 70px);
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.15);
+    margin: clamp(18px, calc(3.82 * var(--vw)), 45px) 0 clamp(12px, calc(3.73 * var(--vw)), 44px);
+    padding: 0 16px;
+}
+
+
+.m-event-card {
+    height: clamp(262px, calc(62 * var(--vw)), 620px);
+    margin-bottom: clamp(18px, calc(3.73 * var(--vw)), 44px);
+    border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    overflow: hidden;
+    box-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    position: relative;
+}
+.m-event-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(180deg,#ff3333 0%,#ed0f0f 100%);
+}
+.m-event-card-inner::before {
+    content: '';
+    position: absolute;
+    left: -28%;
+    top: -8%;
+    width: 72%;
+    height: 130%;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+}
+.m-event-img {
+    position: absolute;
+    left: -4%;
+    top: -7%;
+    width: 56%;
+    height: 124%;
+    object-fit: contain;
+    object-position: left center;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,.2));
+}
+.m-event-copy {
+    position: absolute;
+    inset: 0;
+    padding: clamp(18px, calc(5.2 * var(--vw)), 61px) clamp(18px, calc(4.4 * var(--vw)), 52px) clamp(18px, calc(3.8 * var(--vw)), 44px) 42%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    color: #fff;
+    font-family: var(--m-font);
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25);
+}
+.m-event-title {
+    font-size: clamp(1.42rem, calc(5.85 * var(--vw)), 69px);
+    line-height: 1.06;
+    margin-bottom: clamp(9px, calc(2.2 * var(--vw)), 26px);
+}
+.m-event-options {
+    display: grid;
+    gap: clamp(6px, calc(1.25 * var(--vw)), 14px);
+    width: min(100%, 168px);
+    padding: clamp(8px, calc(1.85 * var(--vw)), 18px);
+    border-radius: clamp(12px, calc(2.2 * var(--vw)), 24px);
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.24);
+    backdrop-filter: blur(2px);
+}
+.m-event-option {
+    display: block;
+    font-size: clamp(.82rem, calc(3.05 * var(--vw)), 36px);
+    line-height: 1.05;
+    margin: 0;
+    cursor: pointer;
+    text-align: center;
+}
+.m-event-option small {
+    display: inline;
+    font-size: clamp(.58rem, calc(1.95 * var(--vw)), 23px);
+    line-height: 1.05;
+    opacity: .9;
+    margin-left: 3px;
+}
+.m-event-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.m-event-option span {
+    display: block;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.52);
+    background: rgba(255,255,255,.12);
+    padding: clamp(5px, calc(1.25 * var(--vw)), 12px) clamp(8px, calc(1.8 * var(--vw)), 18px);
+}
+.m-event-option input:checked + span {
+    background: #fff;
+    color: #e41212;
+    text-shadow: none;
+    box-shadow: 0 3px 10px rgba(0,0,0,.16);
+}
+
+/* ── 1인 1메뉴 배너 ── */
+.m-1per-banner {
+    aspect-ratio: 1081 / 423;
+    border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    overflow: hidden;
+    box-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    margin-bottom: clamp(14px, calc(3.73 * var(--vw)), 44px);
+    position: relative;
+}
+.m-1per-banner-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #fec954 0%, #fbb417 100%);
+}
+.m-1per-banner-img {
+    position: absolute;
+    left: -4%;
+    top: -12%;
+    width: 58%;
+    height: auto;
+    object-fit: contain;
+    object-position: left bottom;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.18));
+}
+.m-1per-banner-copy {
+    position: absolute;
+    right: clamp(14px, calc(4.1 * var(--vw)), 48px);
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: right;
+    color: #fff;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25);
+}
+.m-1per-banner-title {
+    font-size: clamp(1.35rem, calc(5.5 * var(--vw)), 65px);
+    line-height: 1.08;
+}
+.m-1per-banner-sub {
+    font-size: clamp(0.78rem, calc(2.9 * var(--vw)), 34px);
+    line-height: 1.2;
+    margin-top: clamp(4px, calc(1.1 * var(--vw)), 13px);
+}
+
+.m-menu-card {
+    height: var(--card-height, clamp(250px, calc(66.16 * var(--vw)), 780px));
+    margin-bottom: clamp(14px, calc(3.73 * var(--vw)), 44px);
+    border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    overflow: hidden;
+    box-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    position: relative;
+}
+.m-menu-card.is-selected { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--m-red-accent); }
+.m-menu-card-inner { position: relative; height: 100%; min-height: 0; overflow: hidden; }
+.m-menu-card-inner::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 38%;
+    background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.16));
+    z-index: 2;
+    pointer-events: none;
+}
+.m-menu-card-deco {
+    position: absolute;
+    left: -24%; top: -4%; width: 81%; height: 116%; border-radius: 50%;
+    background: rgba(255,255,255,0.16); z-index: 0; pointer-events:none;
+}
+.m-menu-card-img {
+    position: absolute;
+    left: var(--img-left, -4%);
+    bottom: 0;
+    top: auto;
+    width: var(--img-width, 66%);
+    height: var(--img-height, 82%);
+    object-fit: contain;
+    object-position: left bottom;
+    z-index: 2;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,.18));
+}
+.m-menu-card-img-figma {
+    display: block;
+    max-width: none;
+    left: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: var(--img-fit, contain);
+    object-position: var(--img-pos, left bottom);
+    transform: translateZ(0);
+}
+.m-menu-card-overlay {
+    position: absolute; left: -10%; right: -10%; bottom: 0;
+    height: 45%; border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    background: linear-gradient(180deg, rgba(255,255,255,0.43), rgba(255,255,255,0.23)) !important;
+    z-index: 1; pointer-events:none;
+}
+.m-menu-card[data-gradient="purple"] .m-menu-card-inner { background: linear-gradient(180deg,#cd9de9 0%,#ae62d9 100%); }
+.m-menu-card[data-gradient="green"] .m-menu-card-inner { background: linear-gradient(180deg,#57d343 0%,#3ab427 100%); }
+.m-menu-card[data-gradient="darkred"] .m-menu-card-inner { background: linear-gradient(180deg,#521111 0%,#280c0c 100%); }
+.m-menu-card[data-gradient="red"] .m-menu-card-inner { background: linear-gradient(180deg,#ff3333 0%,#d70a0a 100%); }
+.m-menu-card[data-gradient="orange"] .m-menu-card-inner { background: linear-gradient(180deg,#ff8800 0%,#d47100 100%); }
+.m-menu-card[data-gradient="yellow"] .m-menu-card-inner { background: linear-gradient(180deg,#fec954 0%,#fbb417 100%); }
+.m-menu-card[data-gradient="pink"] .m-menu-card-inner { background: linear-gradient(180deg,#ff88c2 0%,#ff6cb3 100%); }
+.m-menu-card[data-gradient="lightblue"] .m-menu-card-inner { background: linear-gradient(180deg,#81c8f1 0%,#6cb7e2 100%); }
+
+.m-menu-card-content {
+    position: absolute; z-index: 3; inset: 0;
+    padding: clamp(20px, calc(6.49 * var(--vw)), 76px) clamp(20px, calc(5.09 * var(--vw)), 60px) clamp(18px, calc(5.26 * var(--vw)), 62px) clamp(42%, 43%, 43%);
+    text-align: right; color: #fff; display: flex; flex-direction: column; align-items: flex-end;
+}
+.m-menu-card-name {
+    order: 1; font-size: clamp(1.8rem, calc(7.12 * var(--vw)), 84px); line-height: 1.084; color:#fff;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25); word-break: keep-all; max-width: 100%;
+}
+.m-menu-card-name-en {
+    order: 2; font-size: clamp(.95rem, calc(3.56 * var(--vw)), 42px); line-height: 1.18; color:#fff;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25); margin-top: clamp(4px, calc(1.2 * var(--vw)), 14px);
+}
+.m-menu-card-desc {
+    order: 3; font-size: clamp(.95rem, calc(3.56 * var(--vw)), 42px); line-height: 1.12; color:#fff;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25); margin-top: clamp(18px, calc(4.24 * var(--vw)), 50px); max-width: 100%; white-space: pre-line;
+}
+.m-menu-card-price {
+    order: 4; margin-top: auto; margin-bottom: clamp(18px, calc(4.58 * var(--vw)), 54px);
+    font-size: clamp(1.65rem, calc(6.11 * var(--vw)), 72px); line-height: 1; color:#fff; white-space: nowrap;
+    text-shadow: 0 4px 4px rgba(0,0,0,0.25);
+    display: inline-flex; align-items: center; gap: clamp(6px, calc(1.2 * var(--vw)), 14px);
+}
+.m-coin {
+    display: inline-block;
+    width: clamp(28px, calc(6.1 * var(--vw)), 72px);
+    aspect-ratio: 80 / 95;
+    background: url('/static/images/mario/coin.png') center/contain no-repeat;
+    vertical-align: middle;
+    flex: 0 0 auto;
+}
+.m-qty { order: 5; display: inline-flex; align-items:center; gap: clamp(18px, calc(5.4 * var(--vw)), 64px); float:none; margin:0; }
+.m-qty-btn {
+    width: clamp(34px, calc(6.87 * var(--vw)), 81px); height: clamp(34px, calc(6.87 * var(--vw)), 81px); border-radius: 50%;
+    border:0; background:#fff; box-shadow:0 4px 4px rgba(0,0,0,0.25); display:grid; place-items:center;
+    font-size: clamp(1.6rem, calc(5.43 * var(--vw)), 64px); line-height:1; font-family: Arial, sans-serif; font-weight:400; padding:0;
+}
+.m-qty-value { width: clamp(32px, calc(7 * var(--vw)), 60px); border:0; background:transparent; color:#fff; text-align:center; font-size:clamp(1.3rem,calc(4.58 * var(--vw)),54px); line-height:1; text-shadow:0 4px 4px rgba(0,0,0,.25); padding:0; -webkit-appearance:none; -moz-appearance:textfield; appearance:textfield; }
+.m-qty-value::-webkit-outer-spin-button,.m-qty-value::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.m-qty-btn:first-child { order: 1; }
+.m-qty-value { order: 2; }
+.m-qty-btn:last-child { order: 3; }
+.m-menu-card[data-gradient="purple"] .m-qty-btn{color:#ac79ca}.m-menu-card[data-gradient="green"] .m-qty-btn{color:#3ab925}.m-menu-card[data-gradient="darkred"] .m-qty-btn{color:#260606}.m-menu-card[data-gradient="red"] .m-qty-btn{color:#d70a0a}.m-menu-card[data-gradient="orange"] .m-qty-btn{color:#d87300}.m-menu-card[data-gradient="yellow"] .m-qty-btn{color:#f9ac00}.m-menu-card[data-gradient="pink"] .m-qty-btn{color:#ff6cb3}.m-menu-card[data-gradient="lightblue"] .m-qty-btn{color:#5cb3e6}
+
+@media (max-width: 460px) {
+    .m-menu-card-content {
+        padding: clamp(18px, calc(5.45 * var(--vw)), 24px)
+                 clamp(16px, calc(4.5 * var(--vw)), 20px)
+                 clamp(16px, calc(4.9 * var(--vw)), 21px)
+                 49%;
+    }
+    .m-menu-card-name {
+        font-size: clamp(1.52rem, calc(5.9 * var(--vw)), 1.72rem);
+        line-height: 1.05;
+    }
+    .m-menu-card-name-en {
+        font-size: clamp(.82rem, calc(3.05 * var(--vw)), .9rem);
+        line-height: 1.12;
+        margin-top: clamp(3px, calc(.9 * var(--vw)), 4px);
+    }
+    .m-menu-card-desc {
+        font-size: clamp(.72rem, calc(2.75 * var(--vw)), .82rem);
+        line-height: 1.08;
+        margin-top: clamp(8px, calc(2.25 * var(--vw)), 11px);
+    }
+    .m-menu-card-price {
+        font-size: clamp(1.34rem, calc(5.05 * var(--vw)), 1.5rem);
+        margin-bottom: clamp(10px, calc(3.1 * var(--vw)), 14px);
+        gap: 5px;
+    }
+    .m-coin {
+        width: clamp(24px, calc(5.4 * var(--vw)), 28px);
+        aspect-ratio: 80 / 95;
+    }
+    .m-qty {
+        gap: clamp(14px, calc(4.3 * var(--vw)), 18px);
+    }
+    .m-qty-btn {
+        width: clamp(31px, calc(7.25 * var(--vw)), 34px);
+        height: clamp(31px, calc(7.25 * var(--vw)), 34px);
+        font-size: clamp(1.35rem, calc(5 * var(--vw)), 1.55rem);
+    }
+    .m-qty-value {
+        width: clamp(28px, calc(6 * var(--vw)), 36px);
+        font-size: clamp(1.05rem, calc(4 * var(--vw)), 1.2rem);
+    }
+}
+
+.m-cart-inline { margin-top: 0; background: linear-gradient(180deg,#ff3333 0%,#d70a0a 100%); border-radius: clamp(20px,calc(3.31 * var(--vw)),39px); padding: clamp(18px,calc(4.33 * var(--vw)),51px) clamp(14px,calc(3.48 * var(--vw)),41px); box-shadow:0 4px 4px rgba(0,0,0,.25); }
+.m-cart-total-card { background: transparent; border-radius:0; padding:0; color:#fff; box-shadow:none; position:relative; margin-top: clamp(22px, calc(5 * var(--vw)), 59px); }
+.m-cart-total-row { display:flex; justify-content:space-between; align-items:center; font-size:clamp(1.85rem,calc(6.11 * var(--vw)),72px); line-height:1.1; text-shadow:0 4px 4px rgba(0,0,0,.25); }
+.m-cart-total-value { display:inline-flex; align-items:center; gap:clamp(6px,calc(1.2 * var(--vw)),14px); }
+.m-cart-body { display:grid; gap: clamp(10px,calc(2.37 * var(--vw)),28px); margin-top:0; }
+.order-summary-empty { background:#fff; border-radius:clamp(20px,calc(3.31 * var(--vw)),39px); padding:24px; color:#666; text-align:center; }
+.order-summary-item, .order-summary-row { background:#fff; border-radius:clamp(20px,calc(3.31 * var(--vw)),39px); min-height:clamp(76px,calc(18.32 * var(--vw)),216px); padding: clamp(14px,calc(3.22 * var(--vw)),38px) clamp(16px,calc(4.6 * var(--vw)),54px); display:flex; justify-content:space-between; align-items:center; gap:12px; box-shadow:none; }
+.order-summary-main { min-width:0; }
+.order-summary-main strong, .order-summary-row .osr-name { color:#eb1f1f; font-size:clamp(1.35rem,calc(4.55 * var(--vw)),54px); line-height:1.2; font-weight:400; text-shadow:0 2px 4px rgba(0,0,0,.15); word-break:keep-all; }
+.order-summary-main span { display:none; }
+.order-summary-meta { flex:0 0 auto; text-align:right; color:#f9ac00; font-size:clamp(1.18rem,calc(4.2 * var(--vw)),50px); line-height:1.08; text-shadow:0 2px 4px rgba(0,0,0,.25); }
+.order-summary-meta strong { display:block; font-weight:400; margin-top: clamp(6px,calc(1.1 * var(--vw)),13px); }
+.order-summary-mini-controls { display:flex; justify-content:flex-end; align-items:center; gap:clamp(5px,calc(1.3 * var(--vw)),10px); }
+.order-summary-mini-controls button { width:clamp(24px,calc(5.8 * var(--vw)),34px); height:clamp(24px,calc(5.8 * var(--vw)),34px); border:0; border-radius:50%; background:#fff4f4; color:#eb1f1f; box-shadow:0 2px 7px rgba(0,0,0,.16); display:grid; place-items:center; padding:0; font-size:clamp(1rem,calc(4.2 * var(--vw)),1.35rem); line-height:1; }
+.order-summary-mini-controls span::after { content:'개'; }
+#summary-count { display:none !important; }
+.m-cart-count {
+    background: var(--m-white);
+    color: var(--m-red);
+    border-radius: 12px;
+    min-width: 24px;
+    height: 24px;
+    place-items: center;
+    font-size: 0.85rem;
+    padding: 0 6px;
+    font-weight: 700;
+    position: absolute;
+    top: 12px;
+    left: 16px;
+}
+.m-order-summary-label { margin-top: 28px; }
+.m-order-btn-card { background:#fff; border-radius:clamp(20px,calc(3.31 * var(--vw)),39px); min-height:clamp(86px,calc(18.32 * var(--vw)),216px); display:grid; place-items:center; box-shadow:0 3px 21px -4px rgba(0,0,0,.25); margin-top:clamp(14px,calc(3 * var(--vw)),28px); padding:0; }
+.m-order-submit-btn { border:0; background:transparent; color:#eb1f1f; font-size:clamp(2.4rem,calc(8.14 * var(--vw)),96px); line-height:1; width:100%; padding:clamp(20px,calc(4 * var(--vw)),48px); font-family:var(--m-font); }
+.m-order-submit-btn:disabled { color:#eb1f1f; opacity:.45; }
+.m-order-submit-btn.is-loading { font-size:clamp(1.75rem,calc(6 * var(--vw)),70px); color:#d60a0a; }
+.m-menu-footer-note { text-align:right; color:#a6a6a6; font-size:clamp(.9rem,calc(3.05 * var(--vw)),36px); line-height:1.3; margin:clamp(24px,calc(7.12 * var(--vw)),84px) 0 0; }
+#session-expired-overlay { position:fixed; inset:0; z-index:999; background:rgba(0,0,0,.55); display:none; place-items:center; padding:clamp(16px,calc(4 * var(--vw)),48px); }
+#session-expired-overlay.is-visible { display:grid; }
+.m-expired-modal {
+    padding: 28px 20px;
+    max-width: 340px;
+    width: 100%;
+}
+/* ══════════════════════════════════════════════════════════════════
+   ORDER SUCCESS PAGE
+   Figma: 1179px frame → clamp()/vw responsive
+   ══════════════════════════════════════════════════════════════════ */
+.m-success { }
+
+/* ── "주문 완료" red gradient banner (Figma: 1081x145, grad #ff3333→#d60a0a, r=37) ── */
+.m-success-banner {
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    border-radius: clamp(14px, calc(3.1 * var(--vw)), 37px);
+    padding: clamp(16px, calc(4.2 * var(--vw)), 38px) 0;
+    text-align: center;
+    box-shadow: 0 3px 21px rgba(0,0,0,0.08);
+    margin-bottom: clamp(12px, calc(4 * var(--vw)), 24px);
+}
+.m-success-banner-text {
+    font-family: var(--m-font);
+    font-size: clamp(1.6rem, calc(5.9 * var(--vw)), 2.5rem);    /* 70px→responsive */
+    font-weight: 400;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+}
+
+/* ── Hero: title (80px #d60a0a) + illustration ── */
+.m-success-hero {
+    text-align: left;
+    margin-bottom: clamp(12px, calc(3.4 * var(--vw)), 20px);
+}
+.m-success-hero-img {
+    width: clamp(140px, calc(24.8 * var(--vw)), 293px);
+    display: block;
+    margin: clamp(8px, calc(2.5 * var(--vw)), 16px) auto 0;
+}
+.m-success-title {
+    font-family: var(--m-font);
+    font-size: clamp(1.45rem, calc(5.7 * var(--vw)), 4rem);
+    color: #d70a0a;
+    line-height: 1.18;
+    margin: 0;
+    word-break: keep-all;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);    /* Figma */
+}
+
+/* ── 총 금액 (58px #3a3a3a) ── */
+.m-success-total-info {
+    font-family: var(--m-font);
+    font-size: clamp(1.05rem, calc(4.9 * var(--vw)), 1.5rem);   /* 58px→responsive */
+    color: #3a3a3a;
+    margin-bottom: clamp(12px, calc(3.4 * var(--vw)), 20px);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+/* ── Order info card (table, order#, time) (58px #3a3a3a, white bg r=39 shadow) ── */
+.m-success-order-info {
+    background: #ffffff;
+    border-radius: clamp(14px, calc(3.3 * var(--vw)), 39px);
+    padding: clamp(14px, calc(3.8 * var(--vw)), 24px) clamp(14px, calc(4.2 * var(--vw)), 28px);
+    margin-bottom: clamp(12px, calc(3.4 * var(--vw)), 20px);
+    box-shadow: 0 4px 21px rgba(0,0,0,0.06);
+}
+.m-info-row,
+.m-success-info-row {
+    margin: clamp(6px, calc(1.5 * var(--vw)), 10px) 0;
+    font-family: var(--m-font);
+    font-size: clamp(0.9rem, calc(4.9 * var(--vw)), 1.5rem);    /* 58px→responsive */
+    color: #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+.m-info-row strong,
+.m-success-info-row strong {
+    color: #3a3a3a;
+    font-weight: 400;
+    text-align: right;
+}
+
+/* ── Decorative icon strip (Figma image 71–79 row, 9 icons across full width) ── */
+.m-icon-strip {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: clamp(2px, calc(1 * var(--vw)), 10px);
+    margin: clamp(10px, calc(3 * var(--vw)), 24px) 0;
+    padding: 0 clamp(2px, calc(1 * var(--vw)), 8px);
+}
+.m-icon-strip img {
+    height: clamp(28px, calc(8.6 * var(--vw)), 102px);  /* Figma icons ~85-102px tall on 1081 */
+    width: auto;
+    flex: 0 0 auto;
+}
+
+/* ── Gradient strip (1181px wide, #df1212→#ffa725→#ffc11a) ── */
+.m-success-gradient-strip {
+    background: linear-gradient(90deg, #df1212, #ffa725, #ffc11a);
+    border-radius: clamp(8px, calc(2.5 * var(--vw)), 20px);
+    height: clamp(6px, calc(2.5 * var(--vw)), 16px);
+    margin: clamp(12px, calc(3.4 * var(--vw)), 20px) 0;
+}
+
+/* ── Section wrapper ── */
+.m-success-section {
+    margin-bottom: clamp(8px, calc(2.5 * var(--vw)), 16px);
+}
+
+/* ── Section label card (white bg, r=37, shadow) ── */
+.m-section-label-card {
+    background: #ffffff;
+    border-radius: clamp(12px, calc(3.1 * var(--vw)), 37px);
+    padding: clamp(10px, calc(2.5 * var(--vw)), 20px) clamp(14px, calc(3.8 * var(--vw)), 28px);
+    box-shadow: 0 3px 21px rgba(0,0,0,0.06);
+    margin-bottom: clamp(6px, calc(1.7 * var(--vw)), 12px);
+}
+
+/* ── White card (r=39 shadow) ── */
+.m-success-card {
+    background: #ffffff;
+    border-radius: clamp(14px, calc(3.3 * var(--vw)), 39px);
+    padding: clamp(14px, calc(3.8 * var(--vw)), 24px) clamp(14px, calc(4.2 * var(--vw)), 28px);
+    box-shadow: 0 4px 21px rgba(0,0,0,0.06);
+    margin-bottom: clamp(6px, calc(1.7 * var(--vw)), 12px);
+}
+
+/* ── Order items list ── */
+.m-success-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.m-success-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: clamp(6px, calc(1.5 * var(--vw)), 10px) 0;
+    font-family: var(--m-font);
+    font-size: clamp(0.95rem, calc(4.9 * var(--vw)), 1.5rem);   /* 58px→responsive */
+    border-bottom: 1px solid #f0f0f0;
+}
+.m-success-row:last-child { border-bottom: none; }
+.sr-name {
+    color: #eb1f1f;    /* Figma: item name color */
+    font-weight: 400;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+.sr-qty {
+    color: #f8ab00;    /* Figma: quantity color */
+    font-weight: 400;
+    flex-shrink: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+/* ── Payment card specific ── */
+.m-payment-card {
+    text-align: left;
+}
+.m-payment-account {
+    margin: 0 0 4px;
+    font-family: var(--m-font);
+    font-size: clamp(0.95rem, calc(4.9 * var(--vw)), 1.5rem);
+    color: #3a3a3a;
+    word-break: break-all;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+.m-payment-account button {
+    all: unset;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    font-weight: 700;
+    text-shadow: inherit;
+    word-break: break-all;
+    display: block;
+    width: 100%;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.08);
+}
+.m-payment-copy-hint {
+    margin: 0 0 4px;
+    font-family: var(--m-font);
+    font-size: clamp(0.72rem, calc(3.1 * var(--vw)), 0.95rem);
+    color: #d60a0a;
+    text-align: center;
+    font-weight: 700;
+}
+.m-payment-deposit {
+    margin: 4px 0;
+    font-family: var(--m-font);
+    font-size: clamp(0.95rem, calc(4.9 * var(--vw)), 1.5rem);
+    color: #3a3a3a;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+.m-payment-memo {
+    margin: 8px 0 0;
+    font-family: var(--m-font);
+    font-size: clamp(0.95rem, calc(4.9 * var(--vw)), 1.5rem);
+    color: #ff2424;    /* Figma: memo text color */
+    font-weight: 400;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+.copy-success {
+    display: inline-block;
+    background: #4caf50;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.85rem;
+    margin-left: 8px;
+}
+
+/* ── Caution text ── */
+.m-success-caution-text {
+    font-family: var(--m-font);
+    font-size: clamp(0.95rem, calc(4.9 * var(--vw)), 1.5rem);
+    color: #3a3a3a;
+    line-height: 1.7;
+    margin: 0;
+    word-break: keep-all;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+/* ── Back button (Figma: 550x156, grad #ff3333→#d60a0a, r=39, white 58px) ── */
+.m-success-back {
+    margin-top: clamp(12px, calc(3.4 * var(--vw)), 24px);
+    padding-bottom: clamp(20px, calc(5 * var(--vw)), 40px);
+}
+.m-success-back-btn {
+    display: block;
+    width: clamp(220px, calc(46.6 * var(--vw)), 550px);     /* Figma: 550px → calc(46.6 * var(--vw)) */
+    margin: 0 auto;
+    border: none;
+    border-radius: clamp(14px, calc(3.3 * var(--vw)), 39px);
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    box-shadow: 0 4px 21px rgba(0,0,0,0.12);
+    color: #ffffff;
+    text-decoration: none;
+    text-align: center;
+    font-family: var(--m-font);
+    font-size: clamp(1.05rem, calc(4.9 * var(--vw)), 1.5rem);  /* 58px→responsive */
+    font-weight: 400;
+    padding: clamp(16px, calc(5 * var(--vw)), 42px) clamp(20px, calc(5 * var(--vw)), 40px);
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+.m-success-back-btn:hover { filter: brightness(1.05); }
+.m-success-back-btn:active { transform: translateY(1px); }
+
+/* ══════════════════════════════════════════════════════════════════
+   CHAT PAGE (admin templates may reference these)
+   ══════════════════════════════════════════════════════════════════ */
+.chat-container {
+    max-width: var(--m-maxw);
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 70px);
+}
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+}
+.chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+.chat-bubble.other {
+    background: var(--m-white);
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.chat-bubble.self {
+    background: var(--m-red);
+    color: var(--m-white);
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+}
+.chat-input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 0 4px;
+    border-top: 1px solid #ddd;
+}
+.chat-input-bar input {
+    flex: 1;
+    border: 2px solid var(--m-gray-border, #d9d9d9);
+    border-radius: 24px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    outline: none;
+}
+.chat-input-bar input:focus {
+    border-color: var(--m-red);
+}
+.chat-input-bar button {
+    border: none;
+    background: var(--m-red);
+    color: var(--m-white);
+    border-radius: 24px;
+    padding: 10px 18px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background 0.12s;
+}
+.chat-input-bar button:hover { background: var(--m-red-bright); }
+
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 360px) {
+    .table-grid { gap: 12px; }
+    .table-card-m { padding: 12px 4px 10px; }
+    .m-waiting-submit { max-width: 260px; }
+}
+@media (max-width: 430px) {
+    .table-panel {
+        padding: 18px;
+    }
+    .table-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+    .table-card-m {
+        min-height: 122px;
+        justify-content: center;
+    }
+    .table-card-m img {
+        width: 48px;
+    }
+    .table-card-m .tc-label {
+        font-size: 1.45rem;
+    }
+}
+@media (min-width: 500px) {
+    .m-menu-card-inner { min-height: 260px; }
+}
+
+/* v6: Figma-like beverage sub-option card */
+.m-beverage-card {
+    height: var(--card-height, clamp(620px, calc(144.9 * var(--vw)), 1708px));
+}
+.m-beverage-card .m-menu-card-overlay {
+    top: 30%;
+    height: 70%;
+}
+.m-beverage-card .m-menu-card-img-figma {
+    width: auto;
+    height: 100%;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    object-fit: contain;
+    object-position: left center;
+}
+.m-beverage-content {
+    padding-top: clamp(44px, calc(11 * var(--vw)), 130px);
+}
+.m-beverage-options {
+    order: 6;
+    width: 100%;
+    display: grid;
+    gap: clamp(4px, calc(1.5 * var(--vw)), 18px);
+    margin-top: clamp(6px, calc(1.8 * var(--vw)), 22px);
+}
+.m-beverage-content .m-menu-card-price {
+    margin-top: clamp(10px, calc(2.8 * var(--vw)), 34px);
+}
+.m-beverage-option-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    align-items: center;
+    gap: clamp(8px, calc(2.2 * var(--vw)), 26px);
+    color: #fff;
+    text-align: right;
+    text-shadow: 0 4px 4px rgba(0,0,0,.25);
+}
+.m-beverage-label strong {
+    display: block;
+    font-family: var(--m-font);
+    font-size: clamp(1.15rem, calc(4.75 * var(--vw)), 56px);
+    line-height: 1.03;
+}
+.m-beverage-label small {
+    display: block;
+    font-family: var(--m-font);
+    font-size: clamp(.82rem, calc(3.39 * var(--vw)), 40px);
+    line-height: 1.2;
+}
+.m-qty-small {
+    position: static;
+    transform: none;
+    width: auto;
+    gap: clamp(5px, calc(1.3 * var(--vw)), 16px);
+}
+.m-qty-small .m-qty-btn {
+    width: clamp(28px, calc(5.9 * var(--vw)), 69px);
+    height: clamp(28px, calc(5.9 * var(--vw)), 69px);
+    font-size: clamp(1.05rem, calc(4.2 * var(--vw)), 50px);
+    color: #ae62d9;
+}
+.m-qty-small .m-qty-value {
+    width: clamp(28px, calc(5 * var(--vw)), 40px);
+    font-size: clamp(1.1rem, calc(4.58 * var(--vw)), 54px);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INTERACTION FEEDBACK — transitions, active states, hover
+   ══════════════════════════════════════════════════════════════════ */
+.m-menu-card { transition: box-shadow 0.2s ease, transform 0.1s ease; }
+.m-menu-card:active { transform: scale(0.985); }
+.m-qty-btn { transition: transform 0.1s ease; cursor: pointer; }
+.m-qty-btn:active { transform: scale(0.82); }
+.home-btn:hover { filter: brightness(1.07); }
+.home-btn { transition: transform 0.12s ease, filter 0.12s ease; }
+.m-beverage-option-row {
+    border-radius: clamp(8px, calc(1.5 * var(--vw)), 14px);
+    padding: clamp(4px, calc(1 * var(--vw)), 8px) clamp(4px, calc(1.5 * var(--vw)), 10px);
+    transition: background 0.15s ease;
+    margin: 0 calc(-1 * clamp(4px, calc(1.5 * var(--vw)), 10px));
+}
+.m-beverage-option-row.is-selected { background: rgba(255,255,255,0.18); }
+.m-cart-total-card { margin-bottom: clamp(10px, calc(2 * var(--vw)), 20px); }
+
+/* ══════════════════════════════════════════════════════════════════
+   SESSION BAR
+   ══════════════════════════════════════════════════════════════════ */
+.m-session-bar {
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.m-session-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.m-session-timer {
+    font-family: Arial, Helvetica, sans-serif;
+    font-variant-numeric: tabular-nums;
+    min-width: 5ch;
+    text-align: right;
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--m-red);
+}
+.m-session-warning { color: #e67e22; font-size: 0.85rem; display: none; grid-column: 1 / -1; text-align: right; }
+.m-session-warning.is-visible { display: inline; }
+
+/* ══════════════════════════════════════════════════════════════════
+   REGISTER / EXPIRED CARDS
+   ══════════════════════════════════════════════════════════════════ */
+.m-register-card { text-align: center; padding: 28px 20px; margin-bottom: 18px; }
+.m-expired-card { text-align: center; padding: 28px 20px; margin-bottom: 18px; border: 2px solid var(--m-red-accent); }
+.m-card-heading { font-family: var(--m-font); color: var(--m-red); margin: 0 0 10px; }
+.m-card-subtext { color: var(--m-muted); font-weight: 700; margin: 0 0 16px; font-size: 0.9rem; }
+.m-card-subtext-sm { color: var(--m-muted); font-weight: 700; margin: 0 0 16px; font-size: 0.9rem; }
+
+/* ══════════════════════════════════════════════════════════════════
+   FLOATING CART BADGE
+   ══════════════════════════════════════════════════════════════════ */
+#floating-cart {
+    position: fixed;
+    bottom: max(clamp(16px, calc(4 * var(--vw)), 24px), env(safe-area-inset-bottom, 16px));
+    left: clamp(16px, calc(4 * var(--vw)), 24px);
+    right: auto;
+    margin: 0;
+    max-width: calc(var(--m-maxw) - 32px);
+    width: auto;
+    background: linear-gradient(180deg, #ff3333 0%, #d60a0a 100%);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: clamp(20px, calc(3.31 * var(--vw)), 39px);
+    box-shadow: 0 6px 28px rgba(214,10,10,0.4), 0 2px 8px rgba(0,0,0,0.15);
+    padding: clamp(10px, calc(2.45 * var(--vw)), 16px) clamp(14px, calc(3.2 * var(--vw)), 24px);
+    display: none;
+    align-items: center;
+    gap: clamp(10px, calc(2.5 * var(--vw)), 20px);
+    color: #fff;
+    font-family: var(--m-font);
+    cursor: pointer;
+    z-index: 100;
+    text-align: left;
+}
+#floating-cart.is-visible {
+    display: flex;
+    animation: fc-float-in 0.22s ease forwards;
+}
+@keyframes fc-float-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+#floating-cart:active { transform: scale(0.98); }
+.fc-count {
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    width: clamp(30px, calc(6.5 * var(--vw)), 40px);
+    height: clamp(30px, calc(6.5 * var(--vw)), 40px);
+    display: grid;
+    place-items: center;
+    font-size: clamp(0.9rem, calc(2.8 * var(--vw)), 1.1rem);
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.fc-label {
+    flex: 0 0 auto;
+    font-size: clamp(.95rem, calc(3.4 * var(--vw)), 1.2rem);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    white-space: nowrap;
+}
+.fc-total {
+    display: none;
+    font-size: clamp(1rem, calc(3.6 * var(--vw)), 1.3rem);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COUPON INPUT CARD
+   ══════════════════════════════════════════════════════════════════ */
+.m-coupon-card {
+    background: #fff;
+    border-radius: clamp(14px, calc(3.5 * var(--vw)), 24px);
+    padding: clamp(14px, calc(3.6 * var(--vw)), 28px);
+    margin-bottom: clamp(10px, calc(2.5 * var(--vw)), 20px);
+}
+.m-coupon-inner { display: flex; flex-direction: column; gap: 8px; }
+.m-coupon-label {
+    font-size: clamp(0.82rem, calc(3 * var(--vw)), 0.95rem);
+    font-weight: 700;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.m-coupon-row { display: flex; gap: 8px; }
+.m-coupon-input {
+    flex: 1;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: clamp(0.95rem, calc(3.3 * var(--vw)), 1.05rem);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+    color: #222;
+    outline: none;
+    transition: border-color 0.15s;
+    text-transform: uppercase;
+}
+.m-coupon-input:focus { border-color: var(--m-red, #e63946); }
