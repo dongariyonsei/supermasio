@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -106,6 +106,17 @@ async def _lifespan(app):
 
 # FastAPI 앱 생성
 app = FastAPI(lifespan=_lifespan)
+
+# ── 전역 예외 핸들러 — 내부 정보 노출 방지 ──
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    traceback.print_exc()  # 서버 로그에만 상세 출력
+    return JSONResponse(
+        {"detail": "Internal server error"},
+        status_code=500,
+    )
+
 
 # 응답 모델 정의
 class OnlineTableInfo(BaseModel):
@@ -878,6 +889,30 @@ def generate_qr_code(url: str, table_id: int) -> str:
     img.save(filepath)
     
     return filepath
+
+
+@app.get("/health")
+async def health_check():
+    """Fly.io healthcheck — DB 연결 + 디스크 용량까지 검증"""
+    try:
+        db = SessionLocal()
+        from sqlalchemy import text as _ht
+        db.execute(_ht("SELECT 1"))
+        db.close()
+    except Exception:
+        return JSONResponse({"status": "unhealthy", "db": "error"}, status_code=503)
+
+    db_path = os.path.join(_DATA_DIR, "orders.db")
+    db_size_mb = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0
+    disk_free_mb = shutil.disk_usage(_DATA_DIR).free / (1024 * 1024)
+
+    return {
+        "status": "ok",
+        "db_mb": round(db_size_mb, 1),
+        "disk_free_mb": round(disk_free_mb, 1),
+        "backup_count": len([f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")]) if os.path.exists(BACKUP_DIR) else 0,
+    }
+
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -2385,10 +2420,13 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/{table_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
-    # STAFF_CHANNEL(0)은 서버 전용 — 외부 WebSocket 접속 차단
+    # ws/0(STAFF_CHANNEL)은 admin 페이지에서 사용 — origin 검증만 수행
+    origin = websocket.headers.get("origin", "")
     if table_id == 0:
-        await websocket.close(code=1008, reason="Staff channel is internal only")
-        return
+        # 외부 도메인에서의 접속 차단
+        if origin and not origin.endswith("supermasio.fly.dev") and "localhost" not in origin and "127.0.0.1" not in origin:
+            await websocket.close(code=1008, reason="External origin not allowed on staff channel")
+            return
     
     print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
     

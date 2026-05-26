@@ -23,9 +23,9 @@ primary_region = "nrt"  # Tokyo — closest to Korea
 
   [[http_service.checks]]
     method = "get"
-    path = "/"
-    interval = "10s"
-    timeout = "2s"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
 
 [[vm]]
   cpu_kind = "shared"
