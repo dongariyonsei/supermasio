@@ -192,11 +192,6 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 </div>
 
 {% if category_key == 'other' %}
-    {# -- 일반 "기타" 아이템 (소스 추가, 상쾌환 스틱, 1UP 생명수) -- #}
-    {% for item in items_in_category if '무지개로드' not in (item.description or '') %}
-        {{ menu_card(item, category_key, loop.index0) }}
-    {% endfor %}
-
     {# -- 무지개로드 음료 카드 -- #}
     {% if beverage_items %}
     <div class="m-menu-card m-beverage-card" data-gradient="purple" style="--card-height:clamp(620px, calc(144.87 * var(--vw)), 1708px);">
@@ -228,6 +223,11 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         </div>
     </div>
     {% endif %}
+
+    {# -- 일반 "기타" 아이템 (소스 추가, 상쾌환 스틱, 1UP 생명수) -- #}
+    {% for item in items_in_category if '무지개로드' not in (item.description or '') %}
+        {{ menu_card(item, category_key, loop.index0) }}
+    {% endfor %}
 {% else %}
     {% for item in items_in_category %}
         {{ menu_card(item, category_key, loop.index0) }}
