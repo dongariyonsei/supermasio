@@ -66,6 +66,43 @@ def _do_backup():
         print(f"[BACKUP ERROR] {e}")
 
 
+def _try_auto_restore():
+    """DB 손상 시 최신 백업에서 자동 복원"""
+    db_path = os.path.join(_DATA_DIR, "orders.db")
+    if not os.path.exists(BACKUP_DIR):
+        print("[AUTO-RESTORE] no backup directory — cannot restore")
+        return
+    backups = sorted([f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")])
+    if not backups:
+        print("[AUTO-RESTORE] no backups found — cannot restore")
+        return
+    # 최신 백업부터 시도
+    for backup_name in reversed(backups):
+        backup_path = os.path.join(BACKUP_DIR, backup_name)
+        try:
+            # 손상된 DB 백업 (포렌식용)
+            if os.path.exists(db_path):
+                corrupt_backup = db_path + ".corrupt"
+                shutil.copy2(db_path, corrupt_backup)
+                os.remove(db_path)
+            # 백업으로 복원
+            shutil.copy2(backup_path, db_path)
+            # 복원한 DB 무결성 재확인
+            db = SessionLocal()
+            from sqlalchemy import text as _rt
+            result = db.execute(_rt("PRAGMA integrity_check")).scalar()
+            db.close()
+            if result == "ok":
+                print(f"[AUTO-RESTORE] successfully restored from {backup_name}")
+                return
+            else:
+                print(f"[AUTO-RESTORE] {backup_name} also corrupt, trying older backup")
+                os.remove(db_path)
+        except Exception as e:
+            print(f"[AUTO-RESTORE] failed with {backup_name}: {e}")
+    print("[AUTO-RESTORE] all backups failed — starting with fresh DB")
+
+
 async def _backup_loop():
     """백그라운드 주기 백업 루프"""
     while True:
@@ -78,9 +115,26 @@ async def _backup_loop():
 
 @asynccontextmanager
 async def _lifespan(app):
-    """FastAPI lifespan: 시작 시 백업 태스크, 종료 시 graceful shutdown"""
+    """FastAPI lifespan: 시작 시 DB 무결성 체크 + 백업, 종료 시 graceful shutdown"""
     global _backup_task_handle
     # ── startup ──
+    # DB 무결성 체크
+    try:
+        db = SessionLocal()
+        from sqlalchemy import text as _ltext
+        # integrity_check: DB 파일 손상 감지
+        result = db.execute(_ltext("PRAGMA integrity_check")).scalar()
+        if result != "ok":
+            print(f"[LIFESPAN CRITICAL] DB integrity check FAILED: {result}")
+            # 백업에서 복원 시도
+            _try_auto_restore()
+        else:
+            print("[LIFESPAN] DB integrity check: ok")
+        db.close()
+    except Exception as e:
+        print(f"[LIFESPAN CRITICAL] DB startup check failed: {e}")
+        _try_auto_restore()
+
     # 첫 백업 (서버 재시작 시 즉시 스냅샷)
     _do_backup()
     # 주기 백업 태스크 시작
@@ -813,7 +867,11 @@ def init_menu_data(db: Session):
     db.commit()
 
 # 메뉴 데이터 초기화
-init_menu_data(next(get_db()))
+_db_init = SessionLocal()
+try:
+    init_menu_data(_db_init)
+finally:
+    _db_init.close()
 
 # 메뉴 관련 함수들 (리팩토링된 버전)
 def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str], Dict[str, List[MenuItem]], Dict[str, str]]:
@@ -2214,6 +2272,13 @@ async def add_menu_item(
             if not image.content_type.startswith('image/'):
                 raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
             
+            # 파일 크기 제한 (5MB)
+            MAX_IMAGE_SIZE = 5 * 1024 * 1024
+            contents = await image.read()
+            if len(contents) > MAX_IMAGE_SIZE:
+                raise HTTPException(status_code=400, detail="이미지는 5MB 이하만 업로드 가능합니다.")
+            await image.seek(0)
+            
             # 파일명 생성 (timestamp + original filename)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             image_filename = f"{timestamp}_{image.filename}"
@@ -2262,6 +2327,13 @@ async def update_menu_item(
             # 파일 확장자 검사
             if not image.content_type.startswith('image/'):
                 raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
+            
+            # 파일 크기 제한 (5MB)
+            MAX_IMAGE_SIZE = 5 * 1024 * 1024
+            contents = await image.read()
+            if len(contents) > MAX_IMAGE_SIZE:
+                raise HTTPException(status_code=400, detail="이미지는 5MB 이하만 업로드 가능합니다.")
+            await image.seek(0)
             
             # 기존 이미지 삭제
             if menu_item.image_filename:
@@ -2537,6 +2609,13 @@ async def create_gift_order(
                 status_code=400,
                 detail={"error": "session_expired", "message": "보내는 테이블의 세션이 만료되었습니다. 페이지를 새로고침해주세요."}
             )
+
+        # 수신 테이블 검증
+        if request.to_table_id < 1 or request.to_table_id > TABLE_COUNT:
+            raise HTTPException(status_code=400, detail={"error": "invalid_table", "message": "존재하지 않는 테이블입니다."})
+        to_session = get_active_session(db, request.to_table_id)
+        if to_session is None:
+            raise HTTPException(status_code=400, detail={"error": "table_empty", "message": "수신 테이블에 활성 세션이 없습니다."})
 
         print(f"Received gift order - from: {request.from_table_id}, to: {request.to_table_id}, menu: {request.menu}")
         
