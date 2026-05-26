@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -22,9 +22,90 @@ import datetime as dt # Import datetime as dt to avoid conflict if datetime was 
 from pydantic import BaseModel
 from pytz import timezone
 import time
+import asyncio
+from contextlib import asynccontextmanager
+from collections import deque
+
+# ── 자동 백업 설정 ──
+BACKUP_DIR = os.path.join(_DATA_DIR, "backups")
+BACKUP_INTERVAL_SEC = int(os.getenv("BACKUP_INTERVAL_MIN", "30")) * 60  # 기본 30분
+BACKUP_KEEP_COUNT = int(os.getenv("BACKUP_KEEP_COUNT", "24"))  # 최근 24개(12시간치) 유지
+_backup_task_handle: asyncio.Task | None = None
+
+
+def _rotate_backups():
+    """오래된 백업 삭제 — BACKUP_KEEP_COUNT개만 유지"""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    backups = sorted(
+        [f for f in os.listdir(BACKUP_DIR) if f.endswith(".db")],
+    )
+    while len(backups) > BACKUP_KEEP_COUNT:
+        os.remove(os.path.join(BACKUP_DIR, backups.pop(0)))
+
+
+def _do_backup():
+    """WAL 체크포인트 후 persistent volume에 백업"""
+    db_path = os.path.join(_DATA_DIR, "orders.db")
+    if not os.path.exists(db_path):
+        return
+    try:
+        # WAL → 메인 DB 병합
+        with engine.connect() as conn:
+            from sqlalchemy import text as _sa_text
+            conn.execute(_sa_text("PRAGMA wal_checkpoint(TRUNCATE)"))
+            conn.commit()
+        # 타임스탬프 백업
+        kst = timezone("Asia/Seoul")
+        ts = dt.datetime.now(kst).strftime("%Y%m%d_%H%M%S")
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        backup_path = os.path.join(BACKUP_DIR, f"orders_{ts}.db")
+        shutil.copy2(db_path, backup_path)
+        _rotate_backups()
+        print(f"[BACKUP] saved {backup_path}")
+    except Exception as e:
+        print(f"[BACKUP ERROR] {e}")
+
+
+async def _backup_loop():
+    """백그라운드 주기 백업 루프"""
+    while True:
+        await asyncio.sleep(BACKUP_INTERVAL_SEC)
+        try:
+            _do_backup()
+        except Exception as e:
+            print(f"[BACKUP LOOP ERROR] {e}")
+
+
+@asynccontextmanager
+async def _lifespan(app):
+    """FastAPI lifespan: 시작 시 백업 태스크, 종료 시 graceful shutdown"""
+    global _backup_task_handle
+    # ── startup ──
+    # 첫 백업 (서버 재시작 시 즉시 스냅샷)
+    _do_backup()
+    # 주기 백업 태스크 시작
+    _backup_task_handle = asyncio.create_task(_backup_loop())
+    print(f"[LIFESPAN] auto-backup every {BACKUP_INTERVAL_SEC}s, keeping {BACKUP_KEEP_COUNT} copies")
+
+    yield  # 앱 실행 중
+
+    # ── shutdown ──
+    # 백업 태스크 정지
+    if _backup_task_handle:
+        _backup_task_handle.cancel()
+        try:
+            await _backup_task_handle
+        except asyncio.CancelledError:
+            pass
+    # 종료 전 최종 백업 + WAL 체크포인트
+    print("[LIFESPAN] shutting down — final backup + checkpoint")
+    _do_backup()
+    engine.dispose()
+    print("[LIFESPAN] shutdown complete")
+
 
 # FastAPI 앱 생성
-app = FastAPI()
+app = FastAPI(lifespan=_lifespan)
 
 # 응답 모델 정의
 class OnlineTableInfo(BaseModel):
@@ -885,7 +966,7 @@ async def send_chat_message(
 @app.get("/chat/messages")
 async def get_chat_messages(
     table_id: int = None,  # 현재 사용자의 테이블 ID 추가
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=200),
     before_id: int = None,
     after_id: int = None,  # 특정 ID 이후의 메시지만 조회
     db: Session = Depends(get_db)
@@ -2304,6 +2385,11 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/{table_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
+    # STAFF_CHANNEL(0)은 서버 전용 — 외부 WebSocket 접속 차단
+    if table_id == 0:
+        await websocket.close(code=1008, reason="Staff channel is internal only")
+        return
+    
     print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
     
     # 명시적으로 WebSocket 헤더 확인
@@ -2339,7 +2425,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
         print(f"WebSocket error on /ws/{table_id}: {str(e)}")
         try:
             manager.disconnect(websocket, table_id)
-        except:
+        except Exception:
             pass
 
 @app.get("/api/menu-data")
