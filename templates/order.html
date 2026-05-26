@@ -170,7 +170,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
 </div>
 
 {% for category_key, items_in_category in menu_items_by_category.items() %}
-{% if items_in_category and category_key not in ['table', 'drinks'] %}
+{% if items_in_category and category_key not in ['table'] %}
 
 <div class="m-section-label">
     {% if category_key == 'set_menu' %}
@@ -178,17 +178,15 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     {% elif category_key == 'main_dishes' %}
         메인 요리
     {% elif category_key == 'side_dishes' %}
-        음료 및 기타 메뉴
+        사이드 메뉴
+    {% elif category_key == 'drinks' %}
+        음료
     {% else %}
         {{ category_display_names.get(category_key, category_key) }}
     {% endif %}
 </div>
 
-{% if category_key == 'side_dishes' %}
-    {% for item in items_in_category if item.name_kr == '소스 추가' %}
-        {{ menu_card(item, category_key, loop.index0) }}
-    {% endfor %}
-
+{% if category_key == 'drinks' %}
     {% if beverage_items %}
     <div class="m-menu-card m-beverage-card" data-gradient="purple" style="--card-height:clamp(620px, calc(144.87 * var(--vw)), 1708px);">
         <div class="m-menu-card-inner">
@@ -219,10 +217,6 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         </div>
     </div>
     {% endif %}
-
-    {% for item in items_in_category if item.name_kr != '소스 추가' %}
-        {{ menu_card(item, category_key, loop.index0 + 10) }}
-    {% endfor %}
 {% else %}
     {% for item in items_in_category %}
         {{ menu_card(item, category_key, loop.index0) }}
