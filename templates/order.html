@@ -103,9 +103,12 @@ document.getElementById('registerForm').addEventListener('submit', async functio
     'Water':'figma_oneup_water.png'
 } %}
 {% set fallback_cycle = ['purple', 'green', 'darkred', 'red', 'orange', 'pink', 'yellow', 'lightblue'] %}
-{% set beverage_items = menu_items_by_category.get('other', [])
-    | selectattr('description', 'search', '무지개로드')
-    | list %}
+{% set beverage_items = [] %}
+{% for item in menu_items_by_category.get('other', []) %}
+{% if '무지개로드' in (item.description or '') %}
+{% if beverage_items.append(item) %}{% endif %}
+{% endif %}
+{% endfor %}
 
 {% macro menu_card(item, category_key, idx=0) -%}
 <div class="m-menu-card order-menu-card"
