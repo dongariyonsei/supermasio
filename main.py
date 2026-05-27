@@ -13,6 +13,8 @@ import qrcode
 from io import BytesIO
 import base64
 import secrets
+import hmac
+import hashlib
 import shutil
 from typing import Optional, List, Dict, Tuple, Any
 from fastapi import WebSocket
@@ -350,6 +352,18 @@ def _is_valid_basic_auth(authorization: str | None) -> bool:
         and secrets.compare_digest(password, ADMIN_PASSWORD)
     )
 
+
+def staff_ws_token() -> str:
+    """Stable token embedded only in authenticated admin pages for staff WebSocket auth."""
+    return hmac.new(
+        ADMIN_PASSWORD.encode("utf-8"),
+        b"staff-websocket-v1",
+        hashlib.sha256,
+    ).hexdigest()
+
+
+templates.env.globals["staff_ws_token"] = staff_ws_token
+
 # QR 코드 저장 디렉토리 생성 (persistent volume 심볼릭 링크 대상)
 QR_DIR = "static/qr"
 os.makedirs(QR_DIR, exist_ok=True)
@@ -666,25 +680,66 @@ def build_session_status(db: Session, table_id: int):
     }
 
 
+def validate_table_id(table_id: int):
+    """고객 테이블 번호 범위를 검증한다."""
+    if table_id < 1 or table_id > TABLE_COUNT:
+        raise HTTPException(status_code=400, detail="Invalid table_id")
+
+
 # ─────────────────────────────────────────────────────────────
 # 주방 디쉬 큐 헬퍼
 # ─────────────────────────────────────────────────────────────
 def get_dish_queue(cooking_orders):
-    """확인된 주문들의 메뉴 아이템을 종류별로 집계해 주방 디쉬 뷰 반환."""
-    dish_map: Dict[int, dict] = {}
+    """확인된 주문들의 조리 대상 OrderItem을 한 줄씩 주방 디쉬 큐로 반환."""
+    rows = []
     for order in cooking_orders:
         for it in order.order_items:
             if not it.menu_item or it.menu_item.category == "table":
                 continue
-            if it.cooking_status == "cancelled":
+            if it.cooking_status not in ("pending", "cooking"):
                 continue
-            mid = it.menu_item_id
-            if mid not in dish_map:
-                dish_map[mid] = {"menu_item": it.menu_item, "total": 0, "tables": []}
-            qty = it.quantity or 1
-            dish_map[mid]["total"] += qty
-            dish_map[mid]["tables"].append({"table_id": order.table_id, "order_id": order.id, "qty": qty})
-    return sorted(dish_map.values(), key=lambda d: -d["total"])
+            rows.append({
+                "order_item": it,
+                "order_item_id": it.id,
+                "menu_item": it.menu_item,
+                "quantity": it.quantity or 1,
+                "table_id": order.table_id,
+                "order_id": order.id,
+                "created_at": order.confirmed_at or order.created_at,
+            })
+    return sorted(rows, key=lambda d: (
+        ensure_kst(d["created_at"]) or get_kst_now(),
+        d["table_id"],
+        d["order_id"],
+        d["order_item_id"],
+    ))
+
+
+def initial_cooking_state(menu_item_id: int | None, db: Session):
+    """OrderItem 생성 시 주방 대상 여부에 따른 초기 조리 상태를 반환한다."""
+    if menu_item_id is None:
+        return "completed", get_kst_now()
+    menu_item = db.query(MenuItem).filter(MenuItem.id == menu_item_id).first()
+    if menu_item and menu_item.category == "table":
+        return "completed", get_kst_now()
+    return "pending", None
+
+
+def order_kitchen_status(order: "Order"):
+    """주문 단위 표시 상태를 OrderItem 상태에서 계산한다."""
+    if order.is_cancelled or order.payment_status == "cancelled":
+        return "cancelled"
+    if order.payment_status == "pending":
+        return "payment_pending"
+    kitchen_items = [
+        item for item in order.order_items
+        if item.menu_item and item.menu_item.category != "table" and item.cooking_status != "cancelled"
+    ]
+    if not kitchen_items or all(item.cooking_status == "completed" for item in kitchen_items):
+        return "completed"
+    if any(item.cooking_status == "cooking" for item in kitchen_items):
+        return "cooking"
+    return "pending"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1034,6 +1089,14 @@ async def send_chat_message(
 ):
     """채팅 메시지 전송 (전체 채팅 또는 개인 메시지)"""
     try:
+        validate_table_id(table_id)
+        if get_active_session(db, table_id) is None:
+            raise HTTPException(status_code=400, detail={"error": "session_expired", "message": "테이블 세션이 만료되었습니다."})
+        if target_table_id is not None:
+            validate_table_id(target_table_id)
+            if get_active_session(db, target_table_id) is None:
+                raise HTTPException(status_code=400, detail={"error": "target_table_empty", "message": "상대 테이블 세션이 없습니다."})
+
         # 닉네임 설정 (없으면 기본값)
         if nickname:
             import re as _re
@@ -1080,6 +1143,8 @@ async def send_chat_message(
             await manager.broadcast_to_all(json.dumps(message_data))
         
         return {"success": True, "message_id": chat_message.id, "is_private": is_private}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1168,6 +1233,7 @@ async def get_online_tables():
 @app.get("/chat/{table_id}", response_class=HTMLResponse)
 async def chat_with_table(request: Request, table_id: int, db: Session = Depends(get_db)):
     """특정 테이블 번호로 채팅 페이지 접속"""
+    validate_table_id(table_id)
     # 최근 채팅 메시지 조회 (최근 50개)
     recent_messages = db.query(ChatMessage).filter(
         ChatMessage.is_global == True
@@ -1187,6 +1253,7 @@ async def chat_with_table(request: Request, table_id: int, db: Session = Depends
 @app.get("/generate-qr/{table_id}")
 async def generate_table_qr(table_id: int, request: Request):
     """특정 테이블의 QR 코드를 생성하고 다운로드합니다."""
+    validate_table_id(table_id)
     base_url = request.base_url
     order_url = f"{base_url}order?table={table_id}"
     qr_path = generate_qr_code(order_url, table_id)
@@ -1247,6 +1314,7 @@ def _has_expired_session(db: Session, table_id: int) -> bool:
 
 @app.get("/order", response_class=HTMLResponse)
 async def order_page(request: Request, table: int, db: Session = Depends(get_db)):
+    validate_table_id(table)
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
 
     # 세션 상태 결정: register(신규) / active(주문가능) / expired(만료-재등록 필요)
@@ -1288,6 +1356,7 @@ async def start_table_session(
     완료 후 /order?table={table_id} 로 리다이렉트한다."""
     from sqlalchemy.exc import IntegrityError
 
+    validate_table_id(table_id)
     nickname = (nickname or "").strip()
     if not nickname:
         return RedirectResponse(url=f"/order?table={table_id}", status_code=303)
@@ -1335,6 +1404,7 @@ async def start_table_session(
 @app.get("/api/table-sessions/status")
 async def table_session_status(table_id: int, db: Session = Depends(get_db)):
     """고객/관리자 폴링용 세션 상태 조회."""
+    validate_table_id(table_id)
     return build_session_status(db, table_id)
 
 @app.post("/submit_order")
@@ -1347,6 +1417,7 @@ async def submit_order(
     db: Session = Depends(get_db)
 ):
     try:
+        validate_table_id(table_id)
         print(f"Received order request - table_id: {table_id}, menu: {menu}, coupon: {coupon_code}, takeout_bonus: {takeout_bonus}")
 
         # 0. 테이블 세션 검증 (서버 측). 클라이언트 카운트다운은 신뢰하지 않는다.
@@ -1448,17 +1519,7 @@ async def submit_order(
 
             decomposed_items = decompose_set_menu(valid_order_items, db)
             for item_data in decomposed_items:
-                if item_data["menu_item_id"] is None:
-                    cooking_status = "completed"
-                    completed_at = get_kst_now()
-                else:
-                    menu_item = db.query(MenuItem).filter(MenuItem.id == item_data["menu_item_id"]).first()
-                    if menu_item and menu_item.category == "table":
-                        cooking_status = "completed"
-                        completed_at = get_kst_now()
-                    else:
-                        cooking_status = "pending"
-                        completed_at = None
+                cooking_status, completed_at = initial_cooking_state(item_data["menu_item_id"], db)
 
                 order_item = OrderItem(
                     order_id=order.id,
@@ -1818,9 +1879,17 @@ async def end_table_session(
         sess.ended_by = "admin"
         sess.end_reason = "admin_reset"
         db.commit()
-    # in-memory 닉네임도 정리하여 테이블을 비운다
-    if sess.table_id in manager.table_nicknames:
-        del manager.table_nicknames[sess.table_id]
+
+    # in-memory 접속/닉네임도 정리하여 관리자 화면과 채팅/선물 대상에서 즉시 빠지게 한다.
+    await manager.clear_table(sess.table_id, reason="admin_reset")
+    try:
+        await manager.broadcast_to_staff(json.dumps({
+            "type": "table_session_ended",
+            "session_id": session_id,
+            "table_id": sess.table_id
+        }))
+    except Exception as e:
+        print(f"WebSocket notification error: {e}")
     return {"success": True, "session_id": session_id, "table_id": sess.table_id}
 
 
@@ -2056,58 +2125,63 @@ async def update_cooking_status(
     return RedirectResponse(url="/admin/orders", status_code=303)
 
 
-@app.post("/admin/orders/complete-dish/{menu_item_id}")
-async def complete_dish(
-    menu_item_id: int,
+@app.post("/admin/orders/complete-item/{order_item_id}")
+async def complete_order_item(
+    order_item_id: int,
     db: Session = Depends(get_db),
     username: str = Depends(verify_admin)
 ):
-    """조리 중인 모든 주문에서 해당 메뉴 아이템을 일괄 완료 처리."""
-    cooking_order_ids = [
-        row[0] for row in db.query(Order.id).filter(
-            Order.payment_status == "confirmed",
-            Order.is_cancelled == False,
-            Order.completed_at.is_(None)
-        ).all()
-    ]
-    if not cooking_order_ids:
+    """주방 큐의 주문 아이템 한 줄만 완료 처리한다."""
+    item = db.query(OrderItem).filter(OrderItem.id == order_item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Order item not found")
+    order = db.query(Order).filter(Order.id == item.order_id).first()
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.payment_status != "confirmed" or order.is_cancelled or order.completed_at is not None:
+        return RedirectResponse(url="/admin/orders", status_code=303)
+    if item.cooking_status not in ("pending", "cooking"):
         return RedirectResponse(url="/admin/orders", status_code=303)
 
-    items = db.query(OrderItem).filter(
-        OrderItem.order_id.in_(cooking_order_ids),
-        OrderItem.menu_item_id == menu_item_id,
-        OrderItem.cooking_status != "cancelled"
-    ).all()
+    if item.menu_item and item.menu_item.category == "table":
+        return RedirectResponse(url="/admin/orders", status_code=303)
 
     now = get_kst_now()
-    affected_order_ids = set()
-    for item in items:
-        item.cooking_status = "completed"
-        item.completed_at = now
-        affected_order_ids.add(item.order_id)
+    item.cooking_status = "completed"
+    item.completed_at = now
 
-    # 해당 주문의 모든 아이템이 완료됐으면 주문 자체도 완료 처리
-    for oid in affected_order_ids:
-        pending_left = db.query(OrderItem).filter(
-            OrderItem.order_id == oid,
-            OrderItem.cooking_status.in_(["pending", "cooking"])
-        ).count()
-        if pending_left == 0:
-            order = db.query(Order).filter(Order.id == oid).first()
-            if order:
-                order.completed_at = now
+    db.flush()
+
+    pending_left = db.query(OrderItem).join(MenuItem).filter(
+        OrderItem.order_id == order.id,
+        OrderItem.cooking_status.in_(["pending", "cooking"]),
+        MenuItem.category != "table"
+    ).count()
+    if pending_left == 0:
+        order.completed_at = now
 
     db.commit()
 
     try:
         await manager.broadcast_to_staff(json.dumps({
             "type": "order_completed",
-            "menu_item_id": menu_item_id
+            "order_id": order.id,
+            "order_item_id": order_item_id,
+            "table_id": order.table_id
         }))
     except Exception:
         pass
 
     return RedirectResponse(url="/admin/orders", status_code=303)
+
+
+@app.post("/admin/orders/complete-dish/{menu_item_id}")
+async def complete_dish(
+    menu_item_id: int,
+    username: str = Depends(verify_admin)
+):
+    """Deprecated: 메뉴 전체 완료는 운영 실수를 만들 수 있어 더 이상 지원하지 않는다."""
+    raise HTTPException(status_code=410, detail="Complete individual order items instead")
 
 
 @app.get("/kitchen", response_class=HTMLResponse)
@@ -2179,8 +2253,24 @@ async def restore_database(
         with open(restore_path, "wb") as f:
             f.write(contents)
 
+        # 업로드 DB 무결성 확인 후 WAL 상태를 정리하고 교체한다.
+        import sqlite3
+        with sqlite3.connect(restore_path) as restore_conn:
+            result = restore_conn.execute("PRAGMA integrity_check").fetchone()
+            if not result or result[0] != "ok":
+                raise HTTPException(status_code=400, detail="업로드한 DB 파일이 손상되었습니다")
+
+        from sqlalchemy import text as sa_text
+        with engine.connect() as conn:
+            conn.execute(sa_text("PRAGMA wal_checkpoint(TRUNCATE)"))
+            conn.commit()
+
         # 엔진 연결 해제 → 파일 교체 → Fly가 프로세스 재시작
         engine.dispose()
+        for suffix in ("-wal", "-shm"):
+            sidecar = db_path + suffix
+            if os.path.exists(sidecar):
+                os.remove(sidecar)
         shutil.move(restore_path, db_path)
 
         def _cleanup_and_exit():
@@ -2198,6 +2288,8 @@ async def restore_database(
             {"message": "DB 복원 완료. 서버를 재시작합니다.", "status": "ok"},
             background=background,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         # 실패 시 원본 복구
         if os.path.exists(pre_restore_backup):
@@ -2228,10 +2320,12 @@ async def table_order_history(
     username: str = Depends(verify_admin)
 ):
     """테이블별 주문 내역 조회"""
+    validate_table_id(table_id)
     # 메뉴 데이터 가져오기
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
     
-    query = db.query(Order).filter(Order.table_id == table_id)
+    _eager = selectinload(Order.order_items).selectinload(OrderItem.menu_item)
+    query = db.query(Order).options(_eager).filter(Order.table_id == table_id)
     
     # 상태별 필터링
     if status == "cooking":
@@ -2264,6 +2358,8 @@ async def table_order_history(
     
     # 최근 주문 조회
     orders = query.order_by(Order.created_at.desc()).limit(limit).all()
+    for order in orders:
+        order.display_status = order_kitchen_status(order)
     
     return templates.TemplateResponse(
         "table_history.html",
@@ -2516,9 +2612,21 @@ class ConnectionManager:
         """관리자/주방 전용 채널(table_id=0)에만 전송. 손님 소켓은 깨우지 않는다."""
         await self.broadcast_to_table(STAFF_CHANNEL, message)
 
+    async def clear_table(self, table_id: int, reason: str = "table_reset"):
+        """관리자 테이블 초기화 시 서버 메모리 상태와 열린 소켓을 함께 정리한다."""
+        self.table_nicknames.pop(table_id, None)
+        connections = list(self.active_connections.get(table_id, []))
+        if table_id in self.active_connections:
+            del self.active_connections[table_id]
+        for connection in connections:
+            try:
+                await connection.close(code=1000, reason=reason)
+            except Exception:
+                pass
+
     def get_online_tables(self) -> List[int]:
         """현재 온라인인 테이블 목록 반환"""
-        online_tables = list(self.active_connections.keys())
+        online_tables = [tid for tid in self.active_connections.keys() if tid != STAFF_CHANNEL]
         print(f"Online tables: {online_tables}")
         return online_tables
 
@@ -2540,24 +2648,23 @@ async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
     # ws/0(STAFF_CHANNEL)은 관리자 인증이 필요한 내부 채널
     if table_id == 0:
         authorization = websocket.headers.get("authorization")
-        if not _is_valid_basic_auth(authorization):
+        token = websocket.query_params.get("token")
+        token_ok = token is not None and secrets.compare_digest(token, staff_ws_token())
+        if not (_is_valid_basic_auth(authorization) or token_ok):
             await websocket.close(code=1008, reason="Admin authorization required")
             return
+    else:
+        db = SessionLocal()
+        try:
+            if get_active_session(db, table_id) is None:
+                await websocket.close(code=1008, reason="Active table session required")
+                return
+        finally:
+            db.close()
     
     print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
     
-    # 명시적으로 WebSocket 헤더 확인
-    connection_header = websocket.headers.get("connection", "").lower()
-    upgrade_header = websocket.headers.get("upgrade", "").lower()
-    
-    print(f"Connection header: {connection_header}")
-    print(f"Upgrade header: {upgrade_header}")
     print(f"WebSocket headers: {dict(websocket.headers)}")
-    
-    if "websocket" not in upgrade_header:
-        print("❌ WebSocket upgrade header missing")
-        await websocket.close(code=1002, reason="WebSocket upgrade required")
-        return
     
     try:
         await manager.connect(websocket, table_id)
@@ -2646,6 +2753,9 @@ async def create_gift_order(
 ):
     """다른 테이블에 주문하기 (선물 주문)"""
     try:
+        validate_table_id(request.from_table_id)
+        validate_table_id(request.to_table_id)
+
         # 송신 테이블의 활성 세션 검증 (인증 없는 API의 최소 보호)
         from_session = get_active_session(db, request.from_table_id)
         if from_session is None:
@@ -2655,8 +2765,6 @@ async def create_gift_order(
             )
 
         # 수신 테이블 검증
-        if request.to_table_id < 1 or request.to_table_id > TABLE_COUNT:
-            raise HTTPException(status_code=400, detail={"error": "invalid_table", "message": "존재하지 않는 테이블입니다."})
         to_session = get_active_session(db, request.to_table_id)
         if to_session is None:
             raise HTTPException(status_code=400, detail={"error": "table_empty", "message": "수신 테이블에 활성 세션이 없습니다."})
@@ -2696,6 +2804,10 @@ async def create_gift_order(
             table_id=request.to_table_id,  # 받는 테이블
             menu=valid_order_items,
             amount=total_amount,
+            original_amount=total_amount,
+            discount_amount=0,
+            final_amount=total_amount,
+            table_session_id=to_session.id,
             payment_status="pending"  # 선물 주문도 결제 대기 상태로 시작
         )
         
@@ -2706,10 +2818,13 @@ async def create_gift_order(
         decomposed_items = decompose_set_menu(valid_order_items, db)
         
         for item_data in decomposed_items:
+            cooking_status, completed_at = initial_cooking_state(item_data["menu_item_id"], db)
             order_item = OrderItem(
                 order_id=order.id,
                 menu_item_id=item_data["menu_item_id"],
                 quantity=item_data["quantity"],
+                cooking_status=cooking_status,
+                completed_at=completed_at,
                 is_set_component=item_data["is_set_component"],
                 parent_set_name=item_data["parent_set_name"],
                 notes=item_data.get("notes")
@@ -2906,6 +3021,7 @@ async def seat_waiting(
     username: str = Depends(verify_admin)
 ):
     """웨이팅 착석 처리"""
+    validate_table_id(table_id)
     waiting = db.query(Waiting).filter(Waiting.id == waiting_id).first()
     if not waiting:
         raise HTTPException(status_code=404, detail="웨이팅을 찾을 수 없습니다.")

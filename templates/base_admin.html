@@ -188,6 +188,13 @@
 
 {% block content %}
 {% set _p = request.url.path %}
+<script>
+window.STAFF_WS_TOKEN = "{{ staff_ws_token() }}";
+window.createStaffWebSocket = function() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return new WebSocket(`${wsProtocol}//${window.location.host}/ws/0?token=${encodeURIComponent(window.STAFF_WS_TOKEN)}`);
+};
+</script>
 
 {# ── Mobile nav (hidden on md+) ── #}
 <div class="adm-mbnav d-md-none">

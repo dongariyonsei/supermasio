@@ -387,15 +387,13 @@
                             {% for dish in dish_queue %}
                             <div class="dish-row">
                                 <div class="dish-info">
-                                    <span class="dish-qty">×{{ dish.total }}</span>
+                                    <span class="dish-qty">×{{ dish.quantity }}</span>
                                     <div class="dish-details">
                                         <span class="dish-name">{{ dish.menu_item.name_kr|simplify_menu }}</span>
-                                        <span class="dish-tables">
-                                            {% for t in dish.tables %}T{{ t.table_id }}{% if t.qty > 1 %}×{{ t.qty }}{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
-                                        </span>
+                                        <span class="dish-tables">T{{ dish.table_id }} · 주문 #{{ dish.order_id }}</span>
                                     </div>
                                 </div>
-                                <form action="/admin/orders/complete-dish/{{ dish.menu_item.id }}" method="post" style="display:inline;">
+                                <form action="/admin/orders/complete-item/{{ dish.order_item_id }}" method="post" style="display:inline;">
                                     <button type="submit" class="dish-done-btn" title="완료">✓</button>
                                 </form>
                             </div>
@@ -562,7 +560,7 @@ setInterval(updateElapsed, 15000);
 // Real-time board swap
 (function () {
     const statusEl = document.getElementById('ws-status');
-    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled'];
+    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled', 'table_session_ended'];
     let refreshing = false, pending = false;
 
     function copyText(doc, id) {
@@ -586,8 +584,7 @@ setInterval(updateElapsed, 15000);
     }
 
     function connect() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
+        const ws = window.createStaffWebSocket();
         window.adminSocket = ws;
         ws.onopen  = () => { if (statusEl) statusEl.innerHTML = '<i class="bi bi-circle-fill text-success"></i> 실시간'; };
         ws.onclose = () => { if (statusEl) statusEl.innerHTML = '<i class="bi bi-circle-fill text-danger"></i> 재연결…'; setTimeout(connect, 2000); };

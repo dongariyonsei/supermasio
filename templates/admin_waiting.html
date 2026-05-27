@@ -309,8 +309,7 @@ async function cancelWaiting(waitingId, name) {
 
 // 실시간 업데이트를 위한 WebSocket 연결
 if (typeof window.websocketConnection === 'undefined') {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    window.websocketConnection = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
+    window.websocketConnection = window.createStaffWebSocket();
     
     window.websocketConnection.onmessage = function(event) {
         const data = JSON.parse(event.data);

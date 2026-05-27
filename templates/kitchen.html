@@ -445,7 +445,7 @@ document.addEventListener('click', () => {
 // Real-time board swap
 (function () {
     const statusEl = document.getElementById('ws-status');
-    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled'];
+    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled', 'table_session_ended'];
     let refreshing = false, pending = false;
     let lastQueueLen = {{ queue|length }};
 
@@ -470,8 +470,7 @@ document.addEventListener('click', () => {
     }
 
     function connect() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
+        const ws = window.createStaffWebSocket();
         window.kitchenSocket = ws;
         ws.onopen  = () => { if (statusEl) statusEl.innerHTML = '<i class="bi bi-circle-fill text-success"></i> 실시간'; };
         ws.onclose = () => {

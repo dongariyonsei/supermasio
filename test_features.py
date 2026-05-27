@@ -131,23 +131,36 @@ try:
           r.status_code == 200 and len(js["tables"]) == main.TABLE_COUNT and "remaining_seconds" in js["tables"][0])
     r_noauth = client.get("/api/admin/table-sessions")
     check("7b. admin API requires auth", r_noauth.status_code == 401)
+    r_bad_table = client.get(f"/order?table={main.TABLE_COUNT + 1}")
+    check("7c. invalid customer table id is rejected", r_bad_table.status_code == 400)
+    staff_ws_ok = False
+    try:
+        with client.websocket_connect(f"/ws/0?token={main.staff_ws_token()}") as ws:
+            ws.send_text("ping")
+            staff_ws_ok = ws.receive_text() == "pong"
+    except Exception:
+        staff_ws_ok = False
+    check("7d. authenticated staff websocket connects", staff_ws_ok)
 
     # ── 8. 관리자 세션 종료 → 새 세션 시작 가능 ──
     client.post("/table-session/start", data={"table_id": 2, "nickname": "tbl2"}, follow_redirects=False)
     db = main.SessionLocal()
     s2 = db.query(main.TableSession).filter(main.TableSession.table_id == 2, main.TableSession.status == "active").first()
     sid = s2.id; db.close()
+    main.manager.set_nickname(2, "stale-tbl2")
     r = client.post(f"/admin/table-sessions/{sid}/end", auth=ADMIN)
     db = main.SessionLocal()
     ended = db.query(main.TableSession).filter(main.TableSession.id == sid).first().status
     db.close()
+    cache_cleared = 2 not in main.manager.table_nicknames
+    chat_after_end = client.post("/chat/send", data={"table_id": 2, "message": "stale"})
     # 새 세션 시작 가능
     client.post("/table-session/start", data={"table_id": 2, "nickname": "tbl2-new"}, follow_redirects=False)
     db = main.SessionLocal()
     new_active = db.query(main.TableSession).filter(main.TableSession.table_id == 2, main.TableSession.status == "active").count()
     db.close()
     check("8. admin can end session; new session can start after",
-          r.status_code == 200 and ended == "ended" and new_active == 1)
+          r.status_code == 200 and ended == "ended" and cache_cleared and chat_after_end.status_code == 400 and new_active == 1)
 
     # ── 9. 기존 주문/관리자/주방 동작 (유효 세션) ──
     client.post("/table-session/start", data={"table_id": 3, "nickname": "tbl3"}, follow_redirects=False)
@@ -168,6 +181,58 @@ try:
     db.close()
     check("9b. order stores subtotal/final/session link (no coupon)", amt_ok,
           f"amount={last.amount} orig={last.original_amount} disc={last.discount_amount}")
+
+    # ── 9c. 디쉬 완료 → 같은 메뉴 전체가 아니라 주문 아이템 한 줄만 완료 처리 ──
+    client.post(f"/admin/orders/confirm/{last.id}", auth=ADMIN, follow_redirects=False)
+    client.post("/submit_order", data={"table_id": 2, "menu": '{"%s": 1}' % item_id})
+    db = main.SessionLocal()
+    other = db.query(main.Order).filter(main.Order.table_id == 2).order_by(main.Order.id.desc()).first()
+    other_id = other.id
+    db.close()
+    client.post(f"/admin/orders/confirm/{other_id}", auth=ADMIN, follow_redirects=False)
+    db = main.SessionLocal()
+    order = db.query(main.Order).filter(main.Order.id == last.id).first()
+    other = db.query(main.Order).filter(main.Order.id == other_id).first()
+    before_queue = main.get_dish_queue([order, other])
+    target_item_id = before_queue[0]["order_item_id"] if before_queue else None
+    db.close()
+    rdish = client.post(f"/admin/orders/complete-item/{target_item_id}", auth=ADMIN, follow_redirects=False)
+    db = main.SessionLocal()
+    order = db.query(main.Order).filter(main.Order.id == last.id).first()
+    other = db.query(main.Order).filter(main.Order.id == other_id).first()
+    after_queue = main.get_dish_queue([order, other])
+    order_done = order.completed_at is not None
+    other_still_pending = other.completed_at is None and len(main.get_dish_queue([other])) == 1
+    bulk_endpoint_gone = client.post(f"/admin/orders/complete-dish/{item_id}", auth=ADMIN, follow_redirects=False).status_code == 410
+    db.close()
+    check("9c. completing one dish leaves same menu from another order pending",
+          rdish.status_code == 303 and len(before_queue) == 2 and len(after_queue) == 1 and order_done and other_still_pending and bulk_endpoint_gone,
+          f"before={len(before_queue)} after={len(after_queue)} done={order_done} other_pending={other_still_pending}")
+
+    thistory = client.get("/admin/table/3", auth=ADMIN)
+    check("9d. table history renders aggregate cooking status",
+          thistory.status_code == 200 and "완료" in thistory.text and "조리 대기" not in thistory.text)
+
+    # ── 9e. 선물 주문도 일반 주문과 같은 금액/세션/아이템 상태 계약을 지킨다 ──
+    gift_resp = client.post("/chat/gift-order", json={
+        "from_table_id": 3,
+        "to_table_id": 2,
+        "menu": {item_id: 1},
+        "message": "gift"
+    })
+    db = main.SessionLocal()
+    gift_order = db.query(main.Order).filter(main.Order.table_id == 2).order_by(main.Order.id.desc()).first()
+    gift_item_states = [it.cooking_status for it in gift_order.order_items]
+    gift_ok = (
+        gift_order.original_amount == price and
+        gift_order.final_amount == price and
+        gift_order.table_session_id is not None and
+        gift_item_states == ["pending"]
+    )
+    db.close()
+    check("9e. gift order stores amount/session/item state consistently",
+          gift_resp.status_code == 200 and gift_ok,
+          f"status={gift_resp.status_code} states={gift_item_states}")
 
     # ── 10. 쿠폰 단일/일괄 생성 ──
     r1 = client.post("/admin/coupons/generate", auth=ADMIN, data={"count": 1, "discount_type": "fixed_amount", "discount_value": 3000}, follow_redirects=False)

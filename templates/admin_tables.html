@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateCountdowns, 1000);
 
     // Real-time partial update — no full page reload
-    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled'];
+    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled', 'table_session_ended'];
     let wsRefreshing = false, wsPending = false;
 
     async function refreshTableBoard() {
@@ -492,8 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     if (typeof window.tablesWs === 'undefined') {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        window.tablesWs = new WebSocket(`${wsProtocol}//${window.location.host}/ws/0`);
+        window.tablesWs = window.createStaffWebSocket();
         window.tablesWs.onmessage = function(event) {
             let data; try { data = JSON.parse(event.data); } catch(e) { return; }
             if (REFRESH_TYPES.includes(data.type)) refreshTableBoard();
