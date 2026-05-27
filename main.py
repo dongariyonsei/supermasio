@@ -1686,7 +1686,7 @@ async def admin_tables(
     
     # 테이블별 현재 상태 조회 (결제 대기, 조리 중, 완료 주문 수)
     table_stats = []
-    
+
     # 만료된 active 세션을 일괄 정리하고, 테이블별 active 세션을 미리 조회
     expire_stale_sessions(db)
     active_sessions_by_table = {
@@ -1694,69 +1694,103 @@ async def admin_tables(
         for s in db.query(TableSession).filter(TableSession.status == "active").all()
     }
 
-    # 1번부터 TABLE_COUNT 번까지 테이블 정보 조회
-    for table_id in range(1, TABLE_COUNT + 1):
-        # 최신 주문 정보
-        latest_order_info = db.query(latest_orders_subquery).filter(
-            latest_orders_subquery.c.table_id == table_id
-        ).first()
-        
-        # 현재 대기 중인 주문 수
-        pending_count = db.query(Order).filter(
-            Order.table_id == table_id,
-            Order.payment_status == "pending",
-            Order.is_cancelled == False
-        ).count()
-        
-        # 현재 조리 중인 주문 수
-        cooking_count = db.query(Order).filter(
-            Order.table_id == table_id,
-            Order.payment_status == "confirmed",
-            Order.is_cancelled == False
-        ).join(OrderItem).join(MenuItem).filter(
-            OrderItem.cooking_status.in_(["pending", "cooking"]),
-            MenuItem.category != "table"
-        ).distinct().count()
-        
-        # 전체 완료된 주문 수 (취소되지 않은 주문 중 조리가 필요한 아이템들이 모두 완료된 주문)
-        completed_total = db.query(Order).filter(
-            Order.table_id == table_id,
-            Order.payment_status == "confirmed",
-            Order.is_cancelled == False
-        ).outerjoin(OrderItem).outerjoin(MenuItem).group_by(Order.id).having(
-            (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 0) |
-            (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 
-             func.sum(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table") & (OrderItem.cooking_status == "completed"), 1), else_=0)))
-        ).count()
-        
-        # 오늘 완료된 주문 수
-        today_start = get_kst_today_start()
-        completed_today = db.query(Order).filter(
-            Order.table_id == table_id,
+    # ── 벌크 집계 쿼리: 300+ 개별 쿼리 → 7개로 대체 ──
+
+    # 테이블별 최신 주문 시각 + 전체 주문 수
+    order_summary_by_table: Dict[int, Any] = {
+        row.table_id: row
+        for row in db.query(
+            Order.table_id,
+            func.max(Order.created_at).label("latest_order_time"),
+            func.count(Order.id).label("total_orders"),
+        ).group_by(Order.table_id).all()
+    }
+
+    # 테이블별 결제 대기 주문 수
+    pending_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.count(Order.id))
+        .filter(Order.payment_status == "pending", Order.is_cancelled == False)
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # 테이블별 조리 중 주문 수 (pending/cooking 비-테이블 아이템을 가진 confirmed 주문)
+    cooking_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.count(Order.id.distinct()))
+        .join(OrderItem, Order.id == OrderItem.order_id)
+        .join(MenuItem, OrderItem.menu_item_id == MenuItem.id)
+        .filter(
             Order.payment_status == "confirmed",
             Order.is_cancelled == False,
-            Order.confirmed_at >= today_start
-        ).outerjoin(OrderItem).outerjoin(MenuItem).group_by(Order.id).having(
-            (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 0) |
-            (func.count(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table"), 1), else_=None)) == 
-             func.sum(case(((OrderItem.menu_item_id.isnot(None)) & (MenuItem.category != "table") & (OrderItem.cooking_status == "completed"), 1), else_=0)))
-        ).count()
-        
-        # 취소된 주문 수
-        cancelled_count = db.query(Order).filter(
-            Order.table_id == table_id,
-            Order.is_cancelled == True
-        ).count()
-        
-        # 총 주문 금액 (완료된 주문만)
-        total_amount = db.query(func.sum(Order.amount)).filter(
-            Order.table_id == table_id,
+            OrderItem.cooking_status.in_(["pending", "cooking"]),
+            MenuItem.category != "table",
+        )
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # pending/cooking 비-테이블 아이템이 남아있는 주문 ID 집합
+    incomplete_order_ids: set = {
+        row[0]
+        for row in db.query(OrderItem.order_id)
+        .join(MenuItem, OrderItem.menu_item_id == MenuItem.id)
+        .filter(
+            OrderItem.cooking_status.in_(["pending", "cooking"]),
+            MenuItem.category != "table",
+        )
+        .distinct()
+        .all()
+    }
+
+    # 테이블별 전체 완료 주문 수 (incomplete 세트에 없는 confirmed 주문)
+    completed_total_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.count(Order.id))
+        .filter(
             Order.payment_status == "confirmed",
-            Order.is_cancelled == False
-        ).scalar() or 0
-        
-        # 온라인 상태 확인
-        is_online = table_id in manager.get_online_tables()
+            Order.is_cancelled == False,
+            Order.id.notin_(incomplete_order_ids) if incomplete_order_ids else True,
+        )
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # 테이블별 오늘 완료 주문 수
+    today_start = get_kst_today_start()
+    completed_today_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.count(Order.id))
+        .filter(
+            Order.payment_status == "confirmed",
+            Order.is_cancelled == False,
+            Order.confirmed_at >= today_start,
+            Order.id.notin_(incomplete_order_ids) if incomplete_order_ids else True,
+        )
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # 테이블별 취소 주문 수
+    cancelled_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.count(Order.id))
+        .filter(Order.is_cancelled == True)
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # 테이블별 매출 합계
+    revenue_by_table: Dict[int, int] = dict(
+        db.query(Order.table_id, func.sum(Order.amount))
+        .filter(Order.payment_status == "confirmed", Order.is_cancelled == False)
+        .group_by(Order.table_id)
+        .all()
+    )
+
+    # 온라인 테이블 목록 (1회 조회)
+    online_table_set = set(manager.get_online_tables())
+
+    # 1번부터 TABLE_COUNT 번까지 테이블 정보 조회
+    for table_id in range(1, TABLE_COUNT + 1):
+        summary = order_summary_by_table.get(table_id)
+        is_online = table_id in online_table_set
 
         # 테이블 세션 상태 결정
         sess = active_sessions_by_table.get(table_id)
@@ -1776,18 +1810,18 @@ async def admin_tables(
             expires_at_iso = None
 
         # 닉네임: 세션 닉네임 우선, 없으면 기존 in-memory 채팅 닉네임
-        nickname = session_nickname or (manager.get_nickname(table_id) if is_online else None)
+        nickname = session_nickname or (manager.table_nicknames.get(table_id) if is_online else None)
 
         table_stats.append({
             'table_id': table_id,
-            'latest_order_time': latest_order_info.latest_order_time if latest_order_info else None,
-            'total_orders': latest_order_info.total_orders if latest_order_info else 0,
-            'pending_count': pending_count,
-            'cooking_count': cooking_count,
-            'completed_total': completed_total,
-            'completed_today': completed_today,
-            'cancelled_count': cancelled_count,
-            'total_amount': total_amount,
+            'latest_order_time': summary.latest_order_time if summary else None,
+            'total_orders': summary.total_orders if summary else 0,
+            'pending_count': pending_by_table.get(table_id, 0),
+            'cooking_count': cooking_by_table.get(table_id, 0),
+            'completed_total': completed_total_by_table.get(table_id, 0),
+            'completed_today': completed_today_by_table.get(table_id, 0),
+            'cancelled_count': cancelled_by_table.get(table_id, 0),
+            'total_amount': revenue_by_table.get(table_id) or 0,
             'is_online': is_online,
             'nickname': nickname,
             'session_status': session_status,
@@ -2551,79 +2585,51 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, List[WebSocket]] = {}  # table_id: [websockets]
         self.table_nicknames: Dict[int, str] = {}  # table_id: nickname
-        print("ConnectionManager initialized")
 
     async def connect(self, websocket: WebSocket, table_id: int):
-        print(f"Attempting to accept WebSocket connection for table {table_id}")
         try:
             await websocket.accept()
-            print(f"WebSocket accepted for table {table_id}")
             if table_id not in self.active_connections:
                 self.active_connections[table_id] = []
             self.active_connections[table_id].append(websocket)
-            print(f"WebSocket added to active connections. Table {table_id} now has {len(self.active_connections[table_id])} connections")
-            print(f"Total tables connected: {len(self.active_connections)}")
         except Exception as e:
-            print(f"Failed to accept WebSocket for table {table_id}: {str(e)}")
+            print(f"[WS] Failed to accept connection for table {table_id}: {e}")
             raise
 
     def disconnect(self, websocket: WebSocket, table_id: int):
-        print(f"Disconnecting WebSocket for table {table_id}")
         try:
             if table_id in self.active_connections:
                 if websocket in self.active_connections[table_id]:
                     self.active_connections[table_id].remove(websocket)
-                    print(f"WebSocket removed from table {table_id}. Remaining connections: {len(self.active_connections[table_id])}")
                 if not self.active_connections[table_id]:
                     del self.active_connections[table_id]
-                    print(f"Table {table_id} removed from active connections (no connections left)")
-            print(f"Total tables connected: {len(self.active_connections)}")
         except Exception as e:
-            print(f"Error disconnecting WebSocket for table {table_id}: {str(e)}")
+            print(f"[WS] Error disconnecting table {table_id}: {e}")
 
     async def broadcast_to_all(self, message: str):
         """모든 연결된 클라이언트에게 메시지 전송"""
-        print(f"Broadcasting to all: {message}")
         dead_connections = []
-        total_sent = 0
-        
         for table_id, connections in self.active_connections.items():
-            for connection in connections[:]:  # 복사본 사용
+            for connection in connections[:]:
                 try:
                     await connection.send_text(message)
-                    total_sent += 1
-                except Exception as e:
-                    print(f"Failed to send to table {table_id}: {str(e)}")
+                except Exception:
                     dead_connections.append((table_id, connection))
-        
-        # 죽은 연결 제거
         for table_id, connection in dead_connections:
             self.disconnect(connection, table_id)
-        
-        print(f"Message sent to {total_sent} connections")
 
     async def broadcast_to_table(self, table_id: int, message: str):
         """특정 테이블에게만 메시지 전송"""
-        print(f"Broadcasting to table {table_id}: {message}")
-        if table_id in self.active_connections:
-            dead_connections = []
-            sent_count = 0
-            
-            for connection in self.active_connections[table_id][:]:  # 복사본 사용
-                try:
-                    await connection.send_text(message)
-                    sent_count += 1
-                except Exception as e:
-                    print(f"Failed to send to table {table_id}: {str(e)}")
-                    dead_connections.append(connection)
-            
-            # 죽은 연결 제거
-            for connection in dead_connections:
-                self.disconnect(connection, table_id)
-            
-            print(f"Message sent to {sent_count} connections for table {table_id}")
-        else:
-            print(f"Table {table_id} not found in active connections")
+        if table_id not in self.active_connections:
+            return
+        dead_connections = []
+        for connection in self.active_connections[table_id][:]:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                dead_connections.append(connection)
+        for connection in dead_connections:
+            self.disconnect(connection, table_id)
 
     async def broadcast(self, message: str):
         """기존 호환성을 위한 메서드"""
@@ -2647,20 +2653,13 @@ class ConnectionManager:
 
     def get_online_tables(self) -> List[int]:
         """현재 온라인인 테이블 목록 반환"""
-        online_tables = [tid for tid in self.active_connections.keys() if tid != STAFF_CHANNEL]
-        print(f"Online tables: {online_tables}")
-        return online_tables
+        return [tid for tid in self.active_connections.keys() if tid != STAFF_CHANNEL]
 
     def set_nickname(self, table_id: int, nickname: str):
-        """테이블의 닉네임 설정"""
         self.table_nicknames[table_id] = nickname
-        print(f"Set nickname for table {table_id}: {nickname}")
 
     def get_nickname(self, table_id: int) -> str:
-        """테이블의 닉네임 반환"""
-        nickname = self.table_nicknames.get(table_id, f"테이블{table_id}")
-        print(f"Get nickname for table {table_id}: {nickname}")
-        return nickname
+        return self.table_nicknames.get(table_id, f"테이블{table_id}")
 
 manager = ConnectionManager()
 
@@ -2683,32 +2682,16 @@ async def websocket_chat_endpoint(websocket: WebSocket, table_id: int):
         finally:
             db.close()
     
-    print(f"WebSocket connection attempt from {websocket.client} to /ws/{table_id}")
-    
-    print(f"WebSocket headers: {dict(websocket.headers)}")
-    
     try:
         await manager.connect(websocket, table_id)
-        print(f"WebSocket connected successfully to /ws/{table_id}")
         while True:
             data = await websocket.receive_text()
-            print(f"WebSocket /ws/{table_id} received: {data}")
-            # 클라이언트에서 ping 메시지 처리
             if data == "ping":
                 await websocket.send_text("pong")
-                print(f"Sent pong to table {table_id}")
-            else:
-                # 다른 메시지 처리 (필요시 확장)
-                print(f"Unknown message from table {table_id}: {data}")
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected from /ws/{table_id}")
         manager.disconnect(websocket, table_id)
-    except Exception as e:
-        print(f"WebSocket error on /ws/{table_id}: {str(e)}")
-        try:
-            manager.disconnect(websocket, table_id)
-        except Exception:
-            pass
+    except Exception:
+        manager.disconnect(websocket, table_id)
 
 @app.get("/api/menu-data")
 async def get_menu_data_api(db: Session = Depends(get_db)):
