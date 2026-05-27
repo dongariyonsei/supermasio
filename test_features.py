@@ -323,6 +323,26 @@ try:
     check("17. admin coupons page renders w/ audit info",
           rc.status_code == 200 and "쿠폰 관리" in rc.text and code in rc.text)
 
+    # ── 17b. 메뉴 행에서 무지개로드 음료를 즉시 비활성화하고 재초기화 후에도 유지 ──
+    db = main.SessionLocal()
+    sprite = db.query(main.MenuItem).filter(main.MenuItem.name_kr == "칠성 사이다").first()
+    pepsi = db.query(main.MenuItem).filter(main.MenuItem.name_kr == "펩시 콜라").first()
+    sprite_id, pepsi_id = sprite.id, pepsi.id
+    db.close()
+    rs = client.post(f"/admin/menu/{sprite_id}/active", auth=ADMIN, data={"is_active": "false"}, follow_redirects=False)
+    rp = client.post(f"/admin/menu/{pepsi_id}/active", auth=ADMIN, data={"is_active": "false"}, follow_redirects=False)
+    db = main.SessionLocal()
+    sprite = db.query(main.MenuItem).filter(main.MenuItem.id == sprite_id).first()
+    pepsi = db.query(main.MenuItem).filter(main.MenuItem.id == pepsi_id).first()
+    immediate_off = sprite.is_active is False and pepsi.is_active is False
+    main.init_menu_data(db)
+    db.refresh(sprite); db.refresh(pepsi)
+    survives_seed_sync = sprite.is_active is False and pepsi.is_active is False
+    db.close()
+    check("17b. admin can deactivate Sprite/Pepsi immediately and seed sync preserves it",
+          rs.status_code == 303 and rp.status_code == 303 and immediate_off and survives_seed_sync,
+          f"s={rs.status_code} p={rp.status_code} immediate={immediate_off} survives={survives_seed_sync}")
+
     # ── 18. 기존 DB 재기동 시 정상 (마이그레이션 멱등) ──
     main.run_migrations()
     r = client.get("/order-success/%d" % o.id)  # 쿠폰 적용 주문 성공 페이지

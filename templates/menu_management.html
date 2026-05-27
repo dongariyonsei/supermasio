@@ -153,12 +153,27 @@
                                                 data-bs-target="#editMenuModal{{ item.id }}">
                                             <i class="bi bi-pencil me-1"></i><span class="d-none d-lg-inline">수정</span>
                                         </button>
+                                        <form method="POST"
+                                              action="/admin/menu/{{ item.id }}/active"
+                                              class="d-inline">
+                                            {% if item.is_active %}
+                                            <input type="hidden" name="is_active" value="false">
+                                            <button type="submit" class="btn btn-outline-warning btn-sm">
+                                                <i class="bi bi-eye-slash me-1"></i><span class="d-none d-lg-inline">비활성화</span>
+                                            </button>
+                                            {% else %}
+                                            <input type="hidden" name="is_active" value="true">
+                                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                                <i class="bi bi-eye me-1"></i><span class="d-none d-lg-inline">활성화</span>
+                                            </button>
+                                            {% endif %}
+                                        </form>
                                         <form method="POST" 
                                               action="/admin/menu/delete/{{ item.id }}" 
                                               class="d-inline"
                                               onsubmit="return confirm('정말로 이 메뉴를 비활성화하시겠습니까?');">
                                             <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                <i class="bi bi-trash me-1"></i><span class="d-none d-lg-inline">삭제</span>
+                                                <i class="bi bi-trash me-1"></i><span class="d-none d-lg-inline">비활성화</span>
                                             </button>
                                         </form>
                                     </div>

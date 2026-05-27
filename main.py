@@ -934,10 +934,12 @@ def init_menu_data(db: Session):
         if row is None:
             db.add(MenuItem(**seed))
             continue
+        previous_is_active = row.is_active
         for key, value in seed.items():
+            if key == "is_active":
+                continue
             setattr(row, key, value)
-        if "is_active" not in seed:
-            row.is_active = True
+        row.is_active = previous_is_active
 
     for row in existing:
         if row.name_kr in obsolete_names:
@@ -2522,6 +2524,25 @@ async def delete_menu_item(
             os.remove(file_path)
     
     menu_item.is_active = False
+    db.commit()
+    return RedirectResponse(url="/admin/menu", status_code=303)
+
+
+@app.post("/admin/menu/{item_id}/active")
+async def set_menu_item_active(
+    item_id: int,
+    is_active: str = Form(...),
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin)
+):
+    """메뉴 행에서 활성/비활성 상태만 즉시 변경한다."""
+    menu_item = db.query(MenuItem).filter(MenuItem.id == item_id).first()
+    if not menu_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    normalized = (is_active or "").strip().lower()
+    if normalized not in ("true", "false", "1", "0", "yes", "no", "on", "off"):
+        raise HTTPException(status_code=400, detail="invalid is_active")
+    menu_item.is_active = normalized in ("true", "1", "yes", "on")
     db.commit()
     return RedirectResponse(url="/admin/menu", status_code=303)
 
