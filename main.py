@@ -2410,7 +2410,7 @@ async def add_menu_item(
     try:
         # 이미지 파일 처리
         image_filename = None
-        if image:
+        if image and image.filename:
             # 파일 확장자 검사
             if not image.content_type.startswith('image/'):
                 raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
@@ -2466,7 +2466,7 @@ async def update_menu_item(
     
     try:
         # 이미지 파일 처리
-        if image:
+        if image and image.filename:
             # 파일 확장자 검사
             if not image.content_type.startswith('image/'):
                 raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
