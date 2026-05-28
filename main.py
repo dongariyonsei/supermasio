@@ -2236,101 +2236,14 @@ async def complete_dish(
     raise HTTPException(status_code=410, detail="Complete individual order items instead")
 
 
-def build_kitchen_queue(cooking_orders):
-    """Group confirmed orders into KDS card objects for kitchen.html.
-
-    Each group exposes:
-      .order      — the Order ORM object
-      .sets       — dict[parent_set_name → list[OrderItem]]  (pending/cooking set components)
-      .singles    — list[OrderItem]  (pending/cooking non-set items)
-      .cancelled  — list[OrderItem]  (cancelled non-table items, shown struck-through)
-    """
-    from collections import defaultdict
-
-    class KDSGroup:
-        __slots__ = ("order", "sets", "singles", "cancelled")
-        def __init__(self, order):
-            self.order = order
-            self.sets: Dict[str, list] = defaultdict(list)
-            self.singles: list = []
-            self.cancelled: list = []
-
-    groups = []
-    for order in cooking_orders:
-        g = KDSGroup(order)
-        for it in order.order_items:
-            if not it.menu_item or it.menu_item.category == "table":
-                continue
-            if it.cooking_status == "cancelled":
-                g.cancelled.append(it)
-            elif it.cooking_status in ("pending", "cooking"):
-                if it.is_set_component and it.parent_set_name:
-                    g.sets[it.parent_set_name].append(it)
-                else:
-                    g.singles.append(it)
-        if g.sets or g.singles or g.cancelled:
-            groups.append(g)
-
-    return sorted(groups, key=lambda g: (
-        ensure_kst(g.order.confirmed_at or g.order.created_at) or get_kst_now(),
-        g.order.table_id,
-    ))
-
-
 @app.get("/kitchen", response_class=HTMLResponse)
 async def kitchen_redirect(username: str = Depends(verify_admin)):
-    return RedirectResponse(url="/admin/kitchen", status_code=303)
+    return RedirectResponse(url="/admin/orders", status_code=303)
 
 
 @app.get("/admin/kitchen", response_class=HTMLResponse)
-async def kitchen_board(
-    request: Request,
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_admin),
-):
-    """주방 디스플레이 시스템 (KDS) — 조리 중인 주문을 카드 형식으로 표시."""
-    _eager = selectinload(Order.order_items).selectinload(OrderItem.menu_item)
-
-    cooking_orders = (
-        db.query(Order)
-        .options(_eager)
-        .filter(
-            Order.payment_status == "confirmed",
-            Order.is_cancelled == False,
-            Order.completed_at.is_(None),
-        )
-        .order_by(Order.confirmed_at.asc())
-        .all()
-    )
-
-    pending_count = (
-        db.query(Order)
-        .filter(Order.payment_status == "pending", Order.is_cancelled == False)
-        .count()
-    )
-
-    completed_orders = (
-        db.query(Order)
-        .filter(
-            Order.payment_status == "confirmed",
-            Order.is_cancelled == False,
-            Order.completed_at.isnot(None),
-        )
-        .order_by(Order.completed_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    return templates.TemplateResponse(
-        "kitchen.html",
-        {
-            "request": request,
-            "queue": build_kitchen_queue(cooking_orders),
-            "pending_count": pending_count,
-            "completed_orders": completed_orders,
-            "username": username,
-        },
-    )
+async def kitchen_board_redirect(username: str = Depends(verify_admin)):
+    return RedirectResponse(url="/admin/orders", status_code=303)
 
 
 @app.get("/admin/backup")
