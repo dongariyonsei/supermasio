@@ -3,6 +3,7 @@
 {% block page_title %}
 {% set _p = request.url.path %}
 {% if '/admin/orders' in _p %}주문 관리
+{% elif '/admin/kitchen' in _p %}주방 KDS
 {% elif '/admin/tables' in _p or '/admin/table/' in _p %}테이블 현황
 {% elif '/admin/waiting' in _p %}웨이팅 관리
 {% elif '/admin/coupons' in _p %}쿠폰 관리
@@ -208,6 +209,7 @@ window.createStaffWebSocket = function() {
     </div>
     <div class="adm-mbnav-links" id="adm-mb-links">
         <a href="/admin/orders"  class="{{ 'active' if '/admin/orders' in _p else '' }}"><i class="bi bi-list-ul"></i>주문 관리</a>
+        <a href="/admin/kitchen" class="{{ 'active' if '/admin/kitchen' in _p else '' }}"><i class="bi bi-fire"></i>주방 KDS</a>
         <a href="/admin/tables"  class="{{ 'active' if '/admin/tables' in _p or '/admin/table/' in _p else '' }}"><i class="bi bi-table"></i>테이블 현황</a>
         <a href="/admin/waiting" class="{{ 'active' if '/admin/waiting' in _p else '' }}"><i class="bi bi-clock"></i>웨이팅 관리</a>
         <a href="/admin/coupons" class="{{ 'active' if '/admin/coupons' in _p else '' }}"><i class="bi bi-ticket-perforated"></i>쿠폰 관리</a>
@@ -225,6 +227,7 @@ window.createStaffWebSocket = function() {
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link {{ 'active' if '/admin/orders' in _p else '' }}"  href="/admin/orders"><i class="bi bi-list-ul"></i>주문 관리</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if '/admin/kitchen' in _p else '' }}" href="/admin/kitchen"><i class="bi bi-fire"></i>주방 KDS</a></li>
                 <li class="nav-item"><a class="nav-link {{ 'active' if '/admin/tables' in _p or '/admin/table/' in _p else '' }}" href="/admin/tables"><i class="bi bi-table"></i>테이블 현황</a></li>
                 <li class="nav-item"><a class="nav-link {{ 'active' if '/admin/waiting' in _p else '' }}" href="/admin/waiting"><i class="bi bi-clock"></i>웨이팅 관리</a></li>
                 <li class="nav-item"><a class="nav-link {{ 'active' if '/admin/coupons' in _p else '' }}" href="/admin/coupons"><i class="bi bi-ticket-perforated"></i>쿠폰 관리</a></li>

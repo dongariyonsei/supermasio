@@ -227,12 +227,28 @@ try:
         gift_order.original_amount == price and
         gift_order.final_amount == price and
         gift_order.table_session_id is not None and
+        gift_order.is_gift_order is True and
         gift_item_states == ["pending"]
     )
     db.close()
+    gift_success = client.get(f"/order-success/{gift_order.id}?gift=true")
     check("9e. gift order stores amount/session/item state consistently",
-          gift_resp.status_code == 200 and gift_ok,
+          gift_resp.status_code == 200 and gift_ok and gift_success.status_code == 200,
           f"status={gift_resp.status_code} states={gift_item_states}")
+
+    # ── 9f. 호출된 웨이팅은 active 상태이며, 사용 중인 테이블에는 착석시킬 수 없다 ──
+    w1 = client.post("/waiting/add", data={"name": "waiter", "phone": "010-0000-0001", "party_size": 2})
+    wid = w1.json()["waiting_id"]
+    call_w = client.post(f"/admin/waiting/call/{wid}", auth=ADMIN)
+    dup_w = client.post("/waiting/add", data={"name": "dup", "phone": "010-0000-0001", "party_size": 2})
+    seat_busy = client.post(f"/admin/waiting/seat/{wid}", auth=ADMIN, data={"table_id": 3})
+    db = main.SessionLocal()
+    w_after = db.query(main.Waiting).filter(main.Waiting.id == wid).first()
+    table3_active = db.query(main.TableSession).filter(main.TableSession.table_id == 3, main.TableSession.status == "active").count()
+    db.close()
+    check("9f. called waiting cannot duplicate or seat into occupied table",
+          w1.status_code == 200 and call_w.status_code == 200 and dup_w.status_code == 400 and seat_busy.status_code == 409 and w_after.status == "called" and table3_active == 1,
+          f"dup={dup_w.status_code} seat={seat_busy.status_code} status={w_after.status} active3={table3_active}")
 
     # ── 10. 쿠폰 단일/일괄 생성 ──
     r1 = client.post("/admin/coupons/generate", auth=ADMIN, data={"count": 1, "discount_type": "fixed_amount", "discount_value": 3000}, follow_redirects=False)
@@ -266,6 +282,12 @@ try:
     db.close()
     check("12. valid coupon applies server-side discount + redeems",
           r.status_code == 200 and discount_ok and redeem_ok, f"disc={o.discount_amount} amt={o.amount}")
+    success_ok = client.get(f"/order-success/{o.id}?table=4")
+    success_missing_table = client.get(f"/order-success/{o.id}")
+    success_fake_gift = client.get(f"/order-success/{o.id}?gift=true")
+    check("12b. order_success requires matching table and ignores fake gift flag",
+          success_ok.status_code == 200 and "쿠폰 할인" in success_ok.text and success_missing_table.status_code == 403 and success_fake_gift.status_code == 403,
+          f"ok={success_ok.status_code} missing={success_missing_table.status_code} fake_gift={success_fake_gift.status_code}")
 
     # ── 13. 무효/만료/비활성/재사용 쿠폰 → 주문 미생성 ──
     client.post("/table-session/start", data={"table_id": 5, "nickname": "tbl5"}, follow_redirects=False)
@@ -345,7 +367,7 @@ try:
 
     # ── 18. 기존 DB 재기동 시 정상 (마이그레이션 멱등) ──
     main.run_migrations()
-    r = client.get("/order-success/%d" % o.id)  # 쿠폰 적용 주문 성공 페이지
+    r = client.get(f"/order-success/{o.id}?table=4")  # 쿠폰 적용 주문 성공 페이지
     check("18. order_success renders coupon discount; migrations idempotent",
           r.status_code == 200 and "쿠폰 할인" in r.text)
 

@@ -427,6 +427,7 @@ class Order(Base):
     coupon_id = Column(Integer, ForeignKey("coupons.id"), nullable=True)
     # 테이블 세션 연결
     table_session_id = Column(Integer, ForeignKey("table_sessions.id"), nullable=True)
+    is_gift_order = Column(Boolean, default=False)
 
     # 관계 설정
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
@@ -554,6 +555,7 @@ def run_migrations():
             ("coupon_id", "INTEGER"),
             ("table_session_id", "INTEGER"),
             ("completed_at", "DATETIME"),
+            ("is_gift_order", "BOOLEAN DEFAULT 0"),
         ]:
             if col_name not in order_cols:
                 missing.append((col_name, col_type))
@@ -1595,7 +1597,7 @@ async def submit_order(
         except Exception as ws_error:
             print(f"WebSocket error (non-critical): {str(ws_error)}")
 
-        return RedirectResponse(url=f"/order-success/{order.id}", status_code=303)
+        return RedirectResponse(url=f"/order-success/{order.id}?table={table_id}", status_code=303)
 
     except HTTPException:
         raise
@@ -2106,7 +2108,21 @@ async def cancel_order(
             item.cooking_status = "cancelled"
             item.cancelled_at = get_kst_now()
             item.cancellation_reason = reason or "주문 취소"
-    
+
+    # 이 주문이 사용한 쿠폰을 미사용 상태로 복원한다
+    if order.coupon_id:
+        coupon = db.query(Coupon).filter(
+            Coupon.id == order.coupon_id,
+            Coupon.status == "redeemed",
+            Coupon.redeemed_order_id == order.id,
+        ).first()
+        if coupon:
+            coupon.status = "unused"
+            coupon.redeemed_at = None
+            coupon.redeemed_order_id = None
+            coupon.redeemed_table_id = None
+            coupon.redeemed_session_id = None
+
     db.commit()
     
     # WebSocket으로 취소 알림 (관리자/주방 보드)
@@ -2200,10 +2216,10 @@ async def complete_order_item(
 
     try:
         await manager.broadcast_to_staff(json.dumps({
-            "type": "order_completed",
+            "type": "order_completed" if pending_left == 0 else "item_completed",
             "order_id": order.id,
             "order_item_id": order_item_id,
-            "table_id": order.table_id
+            "table_id": order.table_id,
         }))
     except Exception:
         pass
@@ -2220,9 +2236,101 @@ async def complete_dish(
     raise HTTPException(status_code=410, detail="Complete individual order items instead")
 
 
+def build_kitchen_queue(cooking_orders):
+    """Group confirmed orders into KDS card objects for kitchen.html.
+
+    Each group exposes:
+      .order      — the Order ORM object
+      .sets       — dict[parent_set_name → list[OrderItem]]  (pending/cooking set components)
+      .singles    — list[OrderItem]  (pending/cooking non-set items)
+      .cancelled  — list[OrderItem]  (cancelled non-table items, shown struck-through)
+    """
+    from collections import defaultdict
+
+    class KDSGroup:
+        __slots__ = ("order", "sets", "singles", "cancelled")
+        def __init__(self, order):
+            self.order = order
+            self.sets: Dict[str, list] = defaultdict(list)
+            self.singles: list = []
+            self.cancelled: list = []
+
+    groups = []
+    for order in cooking_orders:
+        g = KDSGroup(order)
+        for it in order.order_items:
+            if not it.menu_item or it.menu_item.category == "table":
+                continue
+            if it.cooking_status == "cancelled":
+                g.cancelled.append(it)
+            elif it.cooking_status in ("pending", "cooking"):
+                if it.is_set_component and it.parent_set_name:
+                    g.sets[it.parent_set_name].append(it)
+                else:
+                    g.singles.append(it)
+        if g.sets or g.singles or g.cancelled:
+            groups.append(g)
+
+    return sorted(groups, key=lambda g: (
+        ensure_kst(g.order.confirmed_at or g.order.created_at) or get_kst_now(),
+        g.order.table_id,
+    ))
+
+
 @app.get("/kitchen", response_class=HTMLResponse)
 async def kitchen_redirect(username: str = Depends(verify_admin)):
-    return RedirectResponse(url="/admin/orders", status_code=303)
+    return RedirectResponse(url="/admin/kitchen", status_code=303)
+
+
+@app.get("/admin/kitchen", response_class=HTMLResponse)
+async def kitchen_board(
+    request: Request,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_admin),
+):
+    """주방 디스플레이 시스템 (KDS) — 조리 중인 주문을 카드 형식으로 표시."""
+    _eager = selectinload(Order.order_items).selectinload(OrderItem.menu_item)
+
+    cooking_orders = (
+        db.query(Order)
+        .options(_eager)
+        .filter(
+            Order.payment_status == "confirmed",
+            Order.is_cancelled == False,
+            Order.completed_at.is_(None),
+        )
+        .order_by(Order.confirmed_at.asc())
+        .all()
+    )
+
+    pending_count = (
+        db.query(Order)
+        .filter(Order.payment_status == "pending", Order.is_cancelled == False)
+        .count()
+    )
+
+    completed_orders = (
+        db.query(Order)
+        .filter(
+            Order.payment_status == "confirmed",
+            Order.is_cancelled == False,
+            Order.completed_at.isnot(None),
+        )
+        .order_by(Order.completed_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "kitchen.html",
+        {
+            "request": request,
+            "queue": build_kitchen_queue(cooking_orders),
+            "pending_count": pending_count,
+            "completed_orders": completed_orders,
+            "username": username,
+        },
+    )
 
 
 @app.get("/admin/backup")
@@ -2711,6 +2819,7 @@ async def get_menu_data_api(db: Session = Depends(get_db)):
 async def order_success_page(
     request: Request,
     order_id: int,
+    table: int = None,
     gift: bool = False,
     db: Session = Depends(get_db)
 ):
@@ -2718,6 +2827,11 @@ async def order_success_page(
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    # 소유권 확인: gift 플래그는 실제 선물 주문에만 허용하고, 일반 주문은 테이블 일치를 요구한다.
+    is_gift_order = bool(gift and getattr(order, "is_gift_order", False))
+    if not is_gift_order and (table is None or table != order.table_id):
+        raise HTTPException(status_code=403, detail="Access denied")
     
     # 메뉴 데이터 가져오기
     menu_item_details_for_js, menu_names_by_id, menu_items_grouped_by_category, category_display_names = get_menu_data(db)
@@ -2744,7 +2858,7 @@ async def order_success_page(
             "order": order,
             "table_id": order.table_id,
             "menu_names": menu_names_by_id,
-            "is_gift_order": gift,
+            "is_gift_order": is_gift_order,
             "coupon": coupon,
             "takeout_bonus_name": takeout_bonus_item.name_kr if takeout_bonus_item else None
         }
@@ -2812,6 +2926,7 @@ async def create_gift_order(
             discount_amount=0,
             final_amount=total_amount,
             table_session_id=to_session.id,
+            is_gift_order=True,
             payment_status="pending"  # 선물 주문도 결제 대기 상태로 시작
         )
         
@@ -2904,10 +3019,10 @@ async def add_waiting(
 ):
     """웨이팅 등록"""
     try:
-        # 전화번호 중복 확인 (대기 중인 웨이팅만)
+        # 전화번호 중복 확인 (대기 중/호출됨 모두 아직 active 웨이팅이다)
         existing_waiting = db.query(Waiting).filter(
             Waiting.phone == phone,
-            Waiting.status == "waiting"
+            Waiting.status.in_(["waiting", "called"])
         ).first()
         
         if existing_waiting:
@@ -2954,7 +3069,7 @@ async def admin_waiting(
     """웨이팅 관리 페이지"""
     # 현재 대기 중인 웨이팅 목록
     waiting_list = db.query(Waiting).filter(
-        Waiting.status == "waiting"
+        Waiting.status.in_(["waiting", "called"])
     ).order_by(Waiting.created_at.asc()).all()
     
     # 오늘의 웨이팅 통계
@@ -2984,7 +3099,7 @@ async def admin_waiting(
     recent_completed = db.query(Waiting).filter(
         Waiting.created_at >= today_start,
         Waiting.status.in_(["seated", "cancelled"])
-    ).order_by(Waiting.seated_at.desc(), Waiting.cancelled_at.desc()).limit(10).all()
+    ).order_by(func.coalesce(Waiting.seated_at, Waiting.cancelled_at).desc()).limit(10).all()
     
     return templates.TemplateResponse(
         "admin_waiting.html",
@@ -2993,7 +3108,8 @@ async def admin_waiting(
             "waiting_list": waiting_list,
             "today_stats": today_stats,
             "recent_completed": recent_completed,
-            "username": username
+            "username": username,
+            "table_count": TABLE_COUNT,
         }
     )
 
@@ -3001,7 +3117,7 @@ async def admin_waiting(
 async def call_waiting(
     waiting_id: int,
     db: Session = Depends(get_db),
-    username: str = Depends(verify_admin)
+    username: str = Depends(verify_admin),
 ):
     """웨이팅 호출"""
     waiting = db.query(Waiting).filter(Waiting.id == waiting_id).first()
@@ -3014,7 +3130,12 @@ async def call_waiting(
     waiting.status = "called"
     waiting.called_at = get_kst_now()
     db.commit()
-    
+
+    await manager.broadcast_to_staff(json.dumps({
+        "type": "waiting_updated",
+        "waiting_id": waiting_id,
+        "action": "called",
+    }))
     return {"success": True, "message": f"{waiting.name}님을 호출했습니다."}
 
 @app.post("/admin/waiting/seat/{waiting_id}")
@@ -3025,26 +3146,55 @@ async def seat_waiting(
     username: str = Depends(verify_admin)
 ):
     """웨이팅 착석 처리"""
+    from sqlalchemy.exc import IntegrityError
+
     validate_table_id(table_id)
     waiting = db.query(Waiting).filter(Waiting.id == waiting_id).first()
     if not waiting:
         raise HTTPException(status_code=404, detail="웨이팅을 찾을 수 없습니다.")
-    
+
     if waiting.status not in ["waiting", "called"]:
         raise HTTPException(status_code=400, detail="대기 중이거나 호출된 웨이팅만 착석 처리할 수 있습니다.")
-    
+
+    # 착석 즉시 테이블 세션 생성. 이미 active 세션이 있으면 같은 테이블에 중복 착석시키지 않는다.
+    expire_stale_sessions(db, table_id)
+    if get_active_session(db, table_id) is not None:
+        raise HTTPException(status_code=409, detail="이미 사용 중인 테이블입니다.")
+
+    now = get_kst_now()
+    new_session = TableSession(
+        table_id=table_id,
+        nickname=waiting.name,
+        started_at=now,
+        expires_at=now + dt.timedelta(minutes=TABLE_SESSION_DURATION_MINUTES),
+        status="active",
+        last_seen_at=now,
+    )
     waiting.status = "seated"
-    waiting.seated_at = get_kst_now()
+    waiting.seated_at = now
     waiting.table_id = table_id
-    db.commit()
-    
+    db.add(new_session)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="이미 사용 중인 테이블입니다.")
+
+    manager.set_nickname(table_id, waiting.name)
+
+    await manager.broadcast_to_staff(json.dumps({
+        "type": "waiting_updated",
+        "waiting_id": waiting_id,
+        "action": "seated",
+        "table_id": table_id,
+    }))
     return {"success": True, "message": f"{waiting.name}님이 {table_id}번 테이블에 착석했습니다."}
 
 @app.post("/admin/waiting/cancel/{waiting_id}")
 async def cancel_waiting(
     waiting_id: int,
     db: Session = Depends(get_db),
-    username: str = Depends(verify_admin)
+    username: str = Depends(verify_admin),
 ):
     """웨이팅 취소"""
     waiting = db.query(Waiting).filter(Waiting.id == waiting_id).first()
@@ -3057,7 +3207,12 @@ async def cancel_waiting(
     waiting.status = "cancelled"
     waiting.cancelled_at = get_kst_now()
     db.commit()
-    
+
+    await manager.broadcast_to_staff(json.dumps({
+        "type": "waiting_updated",
+        "waiting_id": waiting_id,
+        "action": "cancelled",
+    }))
     return {"success": True, "message": f"{waiting.name}님의 웨이팅이 취소되었습니다."}
 
 if __name__ == "__main__":

@@ -445,7 +445,7 @@ document.addEventListener('click', () => {
 // Real-time board swap
 (function () {
     const statusEl = document.getElementById('ws-status');
-    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'order_reopened', 'order_cancelled', 'item_cancelled', 'table_session_ended'];
+    const REFRESH_TYPES = ['new_order', 'payment_confirmed', 'order_completed', 'item_completed', 'order_reopened', 'order_cancelled', 'item_cancelled', 'table_session_ended'];
     let refreshing = false, pending = false;
     let lastQueueLen = {{ queue|length }};
 
