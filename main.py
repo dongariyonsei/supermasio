@@ -272,7 +272,7 @@ def simplify_menu_name(name):
         "쿠파 최종보스 세트 (5인)": "최종보스 세트",
         "쿠파의 화염 삼겹살(160g)": "화염 삼겹살",
         "키노피오의 불타는 두부마을": "두부김치",
-        "피치 공주의 볶음밥": "볶음밥",
+        "피치 공주의 삼겹볶음밥": "삼겹볶음밥",
         "마리오 레드 나초탑": "나초",
         "요시였던 것": "쥐포",
         "소스 추가": "소스",
@@ -787,18 +787,18 @@ def compute_discount(coupon: Coupon, subtotal: int) -> int:
 SET_MENU_COMPONENTS = {
     "버섯왕국 올스타 세트 (3인)": {
         "쿠파의 화염 삼겹살(160g)": 2,
-        "피치 공주의 볶음밥": 1,
+        "피치 공주의 삼겹볶음밥": 1,
         "음료": 1,
     },
     "마리오 파티 세트 (4인)": {
         "쿠파의 화염 삼겹살(160g)": 2,
-        "피치 공주의 볶음밥": 1,
+        "피치 공주의 삼겹볶음밥": 1,
         "키노피오의 불타는 두부마을": 1,
         "음료": 1,
     },
     "쿠파 최종보스 세트 (5인)": {
         "쿠파의 화염 삼겹살(160g)": 3,
-        "피치 공주의 볶음밥": 1,
+        "피치 공주의 삼겹볶음밥": 1,
         "키노피오의 불타는 두부마을": 1,
         "마리오 레드 나초탑": 1,
         "음료": 2,
@@ -866,12 +866,12 @@ def decompose_set_menu(menu_items: Dict[str, int], db: Session) -> List[Dict]:
 # 초기 메뉴 데이터 생성 함수
 FIGMA_MENU_SEED = [
     dict(name_kr="상차림비(인당)", name_en="table", price=6000, category="table", description=None, image_filename="table.png"),
-    dict(name_kr="버섯왕국 올스타 세트 (3인)", name_en="Meal for Three (3 pax)", price=47000, category="set_menu", description="삼겹살(160g)*2 + 볶음밥\n+ 랜덤 음료 1개", image_filename="mario_allstar_set.png"),
-    dict(name_kr="마리오 파티 세트 (4인)", name_en="Meal for Four (4 pax)", price=64000, category="set_menu", description="삼겹살(160g)*2 + 볶음밥\n+ 두부김치 + 랜덤 음료 1개", image_filename="mario_party_set.png"),
-    dict(name_kr="쿠파 최종보스 세트 (5인)", name_en="Meal for Five (5 pax)", price=87000, category="set_menu", description="삼겹살(160g)*3 + 볶음밥\n+ 두부김치 + 나초탑 + 음료 2개", image_filename="bowser_final_set.png"),
+    dict(name_kr="버섯왕국 올스타 세트 (3인)", name_en="Meal for Three (3 pax)", price=47000, category="set_menu", description="삼겹살(160g)*2 + 삼겹볶음밥\n+ 랜덤 음료 1개", image_filename="mario_allstar_set.png"),
+    dict(name_kr="마리오 파티 세트 (4인)", name_en="Meal for Four (4 pax)", price=64000, category="set_menu", description="삼겹살(160g)*2 + 삼겹볶음밥\n+ 두부김치 + 랜덤 음료 1개", image_filename="mario_party_set.png"),
+    dict(name_kr="쿠파 최종보스 세트 (5인)", name_en="Meal for Five (5 pax)", price=87000, category="set_menu", description="삼겹살(160g)*3 + 삼겹볶음밥\n+ 두부김치 + 나초탑 + 음료 2개", image_filename="bowser_final_set.png"),
     dict(name_kr="키노피오의 불타는 두부마을", name_en="Toad’s Tofu with Stir-fried Kimchi", price=16500, category="main_dishes", description="불타는 마을에서 완성된\n화끈한 두부김치", image_filename="toad_tofu_kimchi.png"),
     dict(name_kr="쿠파의 화염 삼겹살(160g)", name_en="Bowser’s Pork Belly", price=15900, category="main_dishes", description="쿠파의 화염 브레스를\n담아낸 삼겹살", image_filename="bowser_pork_belly.png"),
-    dict(name_kr="피치 공주의 볶음밥", name_en="Peach’s Fried Rice", price=14900, category="main_dishes", description="쿠파한테 납치돼도\n포기 못하는 볶음밥", image_filename="peach_fried_rice.png"),
+    dict(name_kr="피치 공주의 삼겹볶음밥", name_en="Peach’s Pork Belly Fried Rice", price=14900, category="main_dishes", description="쿠파한테 납치돼도\n포기 못하는 삼겹볶음밥", image_filename="peach_fried_rice.png"),
     dict(name_kr="마리오 레드 나초탑", name_en="Mario's Stacked Nachos", price=7900, category="side_dishes", description="마리오도 등반\n포기한 나초탑", image_filename="mario_red_nachos.png"),
     dict(name_kr="요시였던 것", name_en="Not-Yoshi Dried Filefish", price=7900, category="side_dishes", description="요시 실종 후\n발견된 수상한 쥐포", image_filename="not_yoshi_filefish.png"),
     dict(name_kr="레몬", name_en="Lemon", price=3000, category="other", description="무지개로드 음료", image_filename="rainbow_road.png"),
@@ -913,8 +913,7 @@ def init_menu_data(db: Session):
         "너굴 장터 콜라", "부엉의 에너지 드링크",
         # Renamed items — old names must be disabled so the new-name rows take over
         "버섯왕국 올스타 세트", "마리오 파티 세트", "쿠파 최종보스 세트",
-        "쿠파의 화염 삼겹살", "피치공주의 볶음밥", "요시였던 것 (쥐포)",
-        "피치 공주의 삼겹볶음밥",
+        "쿠파의 화염 삼겹살", "피치공주의 삼겹볶음밥", "요시였던 것 (쥐포)",
         "슈퍼스타 주먹밥",
     }
 
@@ -992,7 +991,7 @@ def get_menu_data(db: Session) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, str
         main_order = {
             "키노피오의 불타는 두부마을": 0,
             "쿠파의 화염 삼겹살(160g)": 1,
-            "피치 공주의 볶음밥": 2,
+            "피치 공주의 삼겹볶음밥": 2,
         }
         menu_items_grouped_by_category["main_dishes"].sort(key=lambda x: main_order.get(x.name_kr, 99))
     if menu_items_grouped_by_category["side_dishes"]:
